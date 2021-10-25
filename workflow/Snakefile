@@ -1,0 +1,10 @@
+
+# config file containing parameters
+configfile: "config/config.yml"
+
+# workflow rules
+include: "rules/process_gasperini_data.smk"
+
+# perform all DE tests
+rule all:
+  input: "results/Gasperini2019/diff_expr/output_MAST_perCRE.csv.gz"

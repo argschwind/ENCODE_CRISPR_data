@@ -1,0 +1,18 @@
+
+# urls to download data
+download_urls:
+  gasperini_cds: "https://ftp.ncbi.nlm.nih.gov/geo/series/GSE120nnn/GSE120861/suppl/GSE120861_at_scale_screen.cds.rds.gz"
+  gasperini_guide_tagets: "https://ftp.ncbi.nlm.nih.gov/geo/series/GSE120nnn/GSE120861/suppl/GSE120861_gene_gRNAgroup_pair_table.at_scale.txt.gz"
+  gencode_v26lift37: "http://ftp.ebi.ac.uk/pub/databases/gencode/Gencode_human/release_26/GRCh37_mapping/gencode.v26lift37.annotation.gtf.gz"
+
+diff_expr:
+  umis_per_cell:
+    Gasperini:  [1, 75000]
+  min_cells:
+    perGRNA: 15
+    perCRE:  25
+  max_dist: 2e6
+  formula: "~pert+scale(detected_genes)"
+  n_ctrl: 5000
+  padj_method: "fdr"
+  threads: 5
