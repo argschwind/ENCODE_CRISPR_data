@@ -5,3 +5,5 @@
 *.Rproj
 .snakemake
 *.html
+results/
+slurm_logs/

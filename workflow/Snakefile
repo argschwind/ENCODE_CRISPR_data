@@ -3,7 +3,8 @@
 configfile: "config/config.yml"
 
 # workflow rules
-include: "rules/process_gasperini_data.smk"
+include: "rules/create_gasperini_input.smk"
+include: "rules/perform_diff_expr.smk"
 
 # perform all DE tests
 rule all:

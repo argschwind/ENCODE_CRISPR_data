@@ -12,7 +12,7 @@ suppressPackageStartupMessages({
   library(dplyr)
   library(BiocParallel)
   library(SingleCellExperiment)
-  source(file.path(snakemake@scriptdir, "differential_expression_fun.R")) 
+  source(file.path(snakemake@scriptdir, "R_functions/differential_expression_fun.R")) 
 })
 
 # register parallel backend if specified (if more than 1 thread provided)
