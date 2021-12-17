@@ -1,6 +1,7 @@
 ## Create a SingleCellExperiment object from Gasperini et al. data including perturbation status as
 ## alternative experiments (altExp)
 
+
 # opening log file to collect all messages, warnings and errors
 log <- file(snakemake@log[[1]], open = "wt")
 sink(log)
@@ -83,6 +84,7 @@ grnas_per_cell <- as(col_data[, c("cell", "barcode")], "data.frame")
 # split barcode string in to individual guides and convert to long format
 grnas_per_cell <- grnas_per_cell %>% 
   as_tibble() %>% 
+  filter(!is.na(barcode)) %>%  # remove NA entries from cells without detected gRNAs
   mutate(barcode = strsplit(barcode, split = "_")) %>% 
   unnest(cols = barcode) %>% 
   rename(spacer = barcode)

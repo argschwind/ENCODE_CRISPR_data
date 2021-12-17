@@ -8,4 +8,6 @@ include: "rules/perform_diff_expr.smk"
 
 # perform all DE tests
 rule all:
-  input: "results/Gasperini2019/diff_expr/output_MAST_perCRE.csv.gz"
+  input: 
+    expand("results/Gasperini2019/diff_expr/output_MAST_{pert_level}.csv.gz",
+           pert_level = ["perCRE", "perGRNA"])

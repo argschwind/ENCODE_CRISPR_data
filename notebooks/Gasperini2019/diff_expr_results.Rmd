@@ -1,0 +1,150 @@
+---
+title: "Gasperini differential expression results"
+author: "Andreas Gschwind"
+date: "`r format(Sys.time(), '%B %d, %Y')`"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = FALSE)
+```
+
+## Goal
+Exporation of differential expression results from Gasperini dataset.
+
+```{r requiredPackages, warning=FALSE, message=FALSE}
+library(rtracklayer)
+library(tidyverse)
+library(here)
+library(cowplot)
+library(ggrepel)
+library(knitr)
+library(kableExtra)
+```
+
+***
+
+## CRE-level perturbations
+CRISPRi perturbations are collapsed per targeted CRE, i.e. any cell expressing a guide targeting a
+given CRE is considered perturbed for this CRE. These CRE-level perturbations are used to test for
+CRE-gene links and are the priamry output of the differential expression analysis.
+
+```{r}
+# load genome annotations
+annot <- import(here("resources/gencode.v26lift37.annotation.gtf.gz"), format = "gtf")
+
+# extract gene names for gene ids (remove version from gene id)
+gene_names <- mcols(annot) %>% 
+  as_tibble() %>% 
+  select(gene_id, gene_name) %>% 
+  mutate(gene_id = sub("\\..+", "", gene_id)) %>% 
+  distinct()
+
+# load files containing differential expression output
+cre_results_file <- here("results/Gasperini2019/diff_expr/output_MAST_perCRE.csv.gz")
+cre_results <- read_csv(cre_results_file, show_col_types = FALSE)
+
+# add column indicating significant CRE-gene pairs
+fdr_threshold <- 0.05
+cre_results <- mutate(cre_results, significant = pval_adj < fdr_threshold)
+
+# add gene names to results
+cre_results <- left_join(cre_results, gene_names, by = c("gene" = "gene_id"))
+```
+
+### TSS targeting controls
+381 TSS targeting perturbations were included as positive controls. These are used to assess how
+well the differential expression testing pipeline is well calibrated.
+
+```{r}
+# get TSS targeting controls and add a column specifying if the gene corresponds to the intended 
+# target (i.e is the gene of the perturbed TSS)
+tss_cre_results <- cre_results %>% 
+  filter(grepl(perturbation, pattern = "^PosCtrl")) %>% 
+  mutate(pert_gene = sub("^PosCtrl\\|", "", perturbation)) %>% 
+  mutate(pert_gene = sub("_.+", "", sub("pos_control_|pos_control_Klannchr1_", "", pert_gene))) %>% 
+  mutate(intended_target = pert_gene == gene_name)
+  
+# create table with number of significant and total pairs for intended and other targets
+tss_hits <- tss_cre_results %>% 
+  group_by(intended_target) %>% 
+  summarize(tested_pairs = n(),
+            significant = sum(significant),
+            perc_significant = round((significant / tested_pairs) * 100, digits = 1))
+
+# print table
+kable(tss_hits) %>% 
+  kable_styling(full_width = FALSE)
+```
+
+```{r, fig.height=4, fig.width=6}
+# get maximum absolute log-fold change
+max_lfc <- max(abs(tss_cre_results$logFC), na.rm = TRUE)
+
+# create volcano plot for TSS controls
+ggplot(tss_cre_results, aes(x = logFC, y = -log10(pval_adj), color = intended_target)) +
+  geom_point(data = filter(tss_cre_results, intended_target == FALSE), alpha = 0.5) + 
+  geom_point(data = filter(tss_cre_results, intended_target == TRUE), alpha = 0.5) + 
+  geom_hline(yintercept = -log10(0.05), linetype = "dashed") + 
+  geom_vline(xintercept = 0, linetype = "dashed") +
+  geom_text_repel(data = filter(tss_cre_results, pval_adj < 0.001, logFC > 0.3),
+                  aes(label = paste(pert_gene, gene_name, sep = "->")),
+                  color = "gray32", seed = 80) +
+  scale_color_manual(values = c("TRUE" = "steelblue", "FALSE" = "gray42")) +
+  scale_x_continuous(limits = c(-max_lfc, max_lfc)) +
+  labs(title = "All TSS targeting controls", y = "-log10(FDR)", color = "Intended\ntarget") +
+  theme_bw()
+```
+
+### CRE - gene pairs
+The vast majority of guides are targeting putative enhancers. Differential expression results for
+these are extracted to assess whether they seem biologically reasonable. Most perturbations
+targeting enhancers are expected to decrease the expression of target genes. (Strong) enhancers are
+also expected to be enriched within proximity of their target gene.
+```{r}
+# remove any positive controls and all pairs within 1kb of the TSS
+enh_cre_results <- cre_results %>% 
+  filter(!grepl(perturbation, pattern = "^PosCtrl")) %>% 
+  filter(abs(dist_to_tss) > 1000)
+
+# add column to label pairs > or <= 1Mb
+enh_cre_results <- enh_cre_results %>% 
+  mutate(dist_group = if_else(abs(dist_to_tss) <= 1e6, true = "<=1Mb", false = ">1Mb"))
+
+# count the number of pairs below or above 1Mb
+n_enh_hits <- enh_cre_results %>% 
+  group_by(dist_group) %>% 
+  summarize(tested_pairs = n(),
+            hits = sum(pval_adj < 0.05),
+            perc_hits = mean(pval_adj < 0.05))
+
+# print table
+kable(n_enh_hits) %>% 
+  kable_styling(full_width = FALSE)
+```
+
+```{r, fig.height=4, fig.width=10}
+# get maximum absolute log-fold change
+max_lfc <- max(abs(enh_cre_results$logFC), na.rm = TRUE)
+
+# make volcano plot with all pairs
+p1 <- ggplot(enh_cre_results, aes(x = logFC, y = -log10(pval_adj), color = significant)) +
+  geom_point(alpha = 0.5) +
+  geom_hline(yintercept = -log10(0.05), linetype = "dashed") + 
+  geom_vline(xintercept = 0, linetype = "dashed") +
+  scale_color_manual(values = c("TRUE" = "firebrick3", "FALSE" = "gray42")) +
+  scale_x_continuous(limits = c(-max_lfc, max_lfc)) +
+  labs(title = "All tested CRE-gene pairs (<2Mb)", y = "-log10(FDR)") +
+  theme_bw()
+
+# extract significant hits only
+cre_hits <- filter(enh_cre_results, significant == TRUE)
+
+# plot -log10 p-value vs distance to TSS
+p2 <- ggplot(cre_hits, aes(x = abs(dist_to_tss) / 1000, y = -log10(pval_adj))) +
+  geom_point(alpha = 0.5) +
+  labs(title = "CRE pairs FDR < 0.05", x = "Distance to TSS (kb)", y = "-log10(FDR)") +
+  theme_bw()
+
+plot_grid(p1, p2, nrow = 1)
+```

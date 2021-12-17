@@ -38,7 +38,7 @@ normalize_cens_mean <- function(sce, percentile = 0.9, assay = "counts") {
 #' 
 #' @param sce A Perturb-seq SingleCellExperiment object containing UMI counts.
 #' @param min_umis,max_umis Minimum and maximum number of UMI counts per cell.
-#' @param recompute Should total UMIs per cell be recomputed? Useful if other filters have been
+#' @param recompute Should total UMIs per cell be recomputed? Useful if gene filters have been
 #'   applied before.
 filter_umis_per_cell <- function(sce, min_umis = 0, max_umis = Inf, recompute = FALSE) {
   
