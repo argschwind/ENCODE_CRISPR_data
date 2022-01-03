@@ -5,9 +5,11 @@
 rule extract_chromosome:
   input: "resources/{sample}/perturb_sce.rds"
   output: temp("resources/{sample}/perturb_sce.{chr}.rds")
+  params:
+    rm_zero_cells = True
   conda: "../envs/r_process_crispr_data.yml"
   resources:
-    mem = "8G"
+    mem = "16G"
   script:
     "../scripts/extract_chrom_from_sce.R"
 
@@ -23,12 +25,13 @@ rule perform_de_tests:
     formula = config["diff_expr"]["formula"],
     n_ctrl = config["diff_expr"]["n_ctrl"],
     cell_batches = None,
+    p_adj_method = "fdr",
     seed = 20210928
-  log: "results/{sample}/logs/diff_expr_{chr}_{method}_{strategy}.log"
+  log: "results/{sample}/logs/diff_expr/diff_expr_{chr}_{method}_{strategy}.log"
   threads: config["diff_expr"]["threads"]
   conda: "../envs/r_process_crispr_data.yml"
   resources:
-    mem = "38G",
+    mem = "64G",
     time = "3:00:00"
   script:
     "../scripts/differential_expression.R"

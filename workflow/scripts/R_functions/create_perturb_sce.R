@@ -72,11 +72,10 @@ create_pert_sce <- function(expr, annot, pert_status, grna_annot,
   grna_pert_status <- create_pert_matrix(pert_status, expr = expr, pert_ids = "grna")
   
   # create perturbation status SE object for gRNA-level perturbations
-  grna_perts_se <- create_pert_se_obj(grna_pert_status, pert_annot = distinct(grna_annot[, 1:7]))
+  grna_perts_se <- create_pert_se_obj(grna_pert_status, pert_annot = grna_annot)
   
   # create target-level SE object, if gRNA targets are provided
-  grna_targets <- ncol(grna_annot) == 11
-  if (grna_targets) {
+  if (ncol(grna_annot) == 11) {
     
     # add gRNA targets for each gRNA to pert_status
     pert_status <- dplyr::left_join(pert_status, grna_annot[, c("name", "target_name")],

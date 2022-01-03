@@ -3,7 +3,7 @@
 ## interactions
 
 # attach required packages
-library(SingleCellExperiment)
+suppressPackageStartupMessages(library(SingleCellExperiment))
 
 # load input SCE
 sce <- readRDS(snakemake@input[[1]])
@@ -32,6 +32,18 @@ subset_altexp <- function(sce, chr) {
 
 # subset perturbation data in sce based on chromosome
 sce <- subset_altexp(sce, chr = chr)
+
+# remove any cells with 0 zero counts for this chromosome if specified
+if (snakemake@params$rm_zero_cells == TRUE) {
+  
+  # get cells with 0 counts for genes on chromosome
+  zeros <- colSums(assay(sce, "counts")) == 0
+  
+  # remove these cells from sce
+  message("\nFiltering out ", sum(zeros), " cells with 0 counts for genes on chromosome ", chr, ".")
+  sce <- sce[, !zeros]
+  
+}
 
 # save to output .rds file
 saveRDS(sce, file = snakemake@output[[1]])

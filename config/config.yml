@@ -16,3 +16,11 @@ diff_expr:
   n_ctrl: 5000
   padj_method: "fdr"
   threads: 5
+
+power_simulations:
+  remove_genes: NULL
+  size_factors: "poscounts"
+  fit_type: "parametric"
+  rep: 1
+  pert_genes: 1
+  threads: 20

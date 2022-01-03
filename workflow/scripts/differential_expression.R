@@ -1,6 +1,8 @@
 ## This snakemake R-script performs differential gene expression analysis for Perturb-seq
 ## perturbations to discover cis-regulatory interactions
 
+#save.image(paste0("diff_expr_", snakemake@wildcards$chr, ".rda"))
+#stop()
 
 # opening log file to collect all messages, warnings and errors
 log <- file(snakemake@log[[1]], open = "wt")
@@ -56,7 +58,8 @@ output <- test_differential_expression(sce, pert_level = pert_level,
                                        method = snakemake@wildcards$method,
                                        formula = snakemake@params$formula,
                                        n_ctrl = snakemake@params$n_ctrl,
-                                       cell_batches = snakemake@params$cell_batches)
+                                       cell_batches = snakemake@params$cell_batches,
+                                       p_adj_method = snakemake@params$p_adjust)
 
 # reformat output
 output <- output %>% 

@@ -5,6 +5,7 @@ configfile: "config/config.yml"
 # workflow rules
 include: "rules/create_gasperini_input.smk"
 include: "rules/perform_diff_expr.smk"
+include: "rules/perform_power_simulations.smk"
 
 # perform all DE tests
 rule all:

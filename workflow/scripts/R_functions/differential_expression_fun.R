@@ -15,19 +15,56 @@ normalize_cens_mean <- function(sce, percentile = 0.9, assay = "counts") {
   # extract gene expression data
   counts <- assay(sce, assay)
   
-  # function to calculate censored size factor for one cell
-  calculate_sf <- function(x) {
+  # function to calculate censored umi counts for one cell
+  compute_censored_umis <- function(x) {
     sum(x[x <= quantile(x, probs = percentile)]) + 1
   }
   
-  # calculate size factors for normalization
-  size_factors <- apply(counts, MARGIN = 2, FUN = calculate_sf)
+  # calculate censored total umis per cell
+  cens_umis_per_cell <- apply(counts, MARGIN = 2, FUN = compute_censored_umis)
+  
+  # calculate normalization factors
+  norm_factors <- cens_umis_per_cell / mean(cens_umis_per_cell)
+  
+  # normalize data of each cell based on computed normalization factors
+  normcounts <- t(t(counts) / norm_factors)
+  
+  # add normalized data and normalization factors to sce object
+  assay(sce, "normcounts") <- normcounts
+  colData(sce)[, "norm_factors"] <- norm_factors
+  return(sce)
+  
+}
+
+#' DESeq size factor normalization
+#' 
+#' Apply library size normalization to DGE data based on size factor calculation methods provided by
+#' DESeq2
+#' 
+#' @param sce A SingleCellExperiment object containing digital gene expression data for all cells
+#'   and genes to be normalized.
+#' @param locfun A function to compute a location for a sample (default: median, see
+#'   ?estimateSizeFactorsForMatrix for more information)
+#' @param type Compute size factors using standard median ("ratio") or positive counts only
+#'   ("poscounts"). See ?estimateSizeFactorsForMatrix for more information.
+#' @param assay Assay to be normalized (default: counts).
+normalize_deseq <- function(sce, locfunc = stats::median, type = c("ratio", "poscounts"),
+                            assay = "counts") {
+  
+  type <- match.arg(type)
+  
+  # extract gene expression data
+  counts <- assay(sce, assay)
+  
+  # compute size factors
+  norm_factors <- DESeq2::estimateSizeFactorsForMatrix(counts, locfunc = locfunc, type = type)
   
   # normalize data of each cell based on computed size factors
-  normcounts <- t(t(counts) / size_factors) * mean(size_factors)
+  normcounts <- t(t(counts) / norm_factors)
   
-  # add normalized data to sce object
+  # add normalized data and normalization factors to sce object
   assay(sce, "normcounts") <- normcounts
+  colData(sce)[, "norm_factors"] <- norm_factors
   return(sce)
   
 }
@@ -78,7 +115,7 @@ filter_cells_per_pert <- function(sce, min_cells, pert_level) {
   message("Removing ", sum(!perts_filter),
           " perturbations based on 'minimum cells per perturbation' filter.")
   altExp(sce, pert_level) <- perts[perts_filter, ]
-
+  
   return(sce)
   
 }
@@ -90,7 +127,7 @@ filter_cells_per_pert <- function(sce, min_cells, pert_level) {
 #' 
 #' @param sce A SingleCellExperiment object containing gene expression data and perturbation
 #'   data as alternative experiments (altExp)
-#' @param pert_level Based on which perturbation level should differention expression test be
+#' @param pert_level Based on which perturbation level should differential expression test be
 #'   performed? I.e. the name of the altExp that should be used as perturbation status matrix.
 #' @param max_dist Only consider genes within specified distance from perturbation for differential
 #'   expression tests (default: NULL). If NULL all genes are tested against all perturbations.
@@ -99,8 +136,7 @@ filter_cells_per_pert <- function(sce, min_cells, pert_level) {
 #' @param formula Formula for differential expression model (default: ~pert). Ignored when not
 #'   appropriate.
 #' @param n_ctrl Specifies how many negative control cells should be randomly drawn
-#'   (default: 1000). Negative control cells follow the same distribution across 10x lanes as
-#'   perturbed cells. Set to FALSE to use all non-perturbed cells as negative controls.
+#'   (default: 1000). Set to FALSE to use all non-perturbed cells as negative controls.
 #' @param cell_batches (optional) Column name in colData specifying batch for each cell. If
 #'   specified control cells are sampled from these batches with equal proportions as perturbed
 #'   cells.
@@ -108,7 +144,7 @@ filter_cells_per_pert <- function(sce, min_cells, pert_level) {
 #'   \code{\link[stats]{p.adjust}}.
 test_differential_expression <- function(sce, pert_level, max_dist = NULL,
                                          method = c("MAST", "DEsingle", "LFC"),
-                                         formula = ~pert, n_ctrl = 1000, cell_batches = NULL, 
+                                         formula = ~pert, n_ctrl = 5000, cell_batches = NULL, 
                                          p_adj_method = c("fdr", "holm", "hochberg", "hommel",
                                                           "bonferroni", "BH", "BY", "none")) {
   
@@ -282,6 +318,21 @@ de_LFC <- function(pert_object, assay = "logcounts", pseudocount = 1, ...) {
 
 # HELPER FUNCTIONS =================================================================================
 
+# filter a Perturb-seq SCE object for genes within a specified distance of a given perturbation
+filt_max_dist_pert <- function(sce, pert, max_dist) {
+  
+  # get genomic coordinates of perturbation pert
+  pert_annot <- rowData(altExp(sce, pert_level))
+  pert_annot <- makeGRangesFromDataFrame(pert_annot[pert, ])
+  
+  # only retain data on genes within max_dist from perturbation
+  pert_window <- resize(pert_annot, width = max_dist * 2, fix = "center")
+  sce <- subsetByOverlaps(sce, pert_window, ignore.strand = TRUE)
+  
+  return(sce)
+  
+}
+
 # perform differential gene expression for one perturbation
 test_de <- function(pert, sce, pert_level, cell_batches, pert_input_function, max_dist, de_function,
                     formula, n_ctrl) {
@@ -290,14 +341,10 @@ test_de <- function(pert, sce, pert_level, cell_batches, pert_input_function, ma
   pert_object <- pert_input_function(pert, sce = sce, pert_level = pert_level,
                                      cell_batches = cell_batches, n_ctrl = n_ctrl)
   
-  # get genomic coordinates of perturbation pert
+  
+  # only retain genes within maximum distance if specified
   if (!is.null(max_dist)) {
-    pert_annot <- rowData(altExp(pert_object, pert_level))
-    pert_annot <- makeGRangesFromDataFrame(pert_annot[pert, ])
-    
-    # only retain data on genes within max_dist from perturbation
-    pert_window <- resize(pert_annot, width = max_dist * 2, fix = "center")
-    pert_object <- subsetByOverlaps(pert_object, pert_window, ignore.strand = TRUE)
+    pert_object <- filt_max_dist_pert(pert_object, pert = pert, max_dist = max_dist)
   }
   
   # perform differential gene expression test. warnings and errors get reported and in case of
@@ -436,9 +483,9 @@ annotate_dist_to_gene <- function(de_output, sce, pert_level) {
   
   # annotate differential expression output with perturbation and tss coordinates
   output <- annotate_de_output(de_output, pert_coords = pert_coords, gene_coords = gene_coords)
-
+  
   return(output)
-
+  
 }
 
 # annotate differential expression output with perturbation and gene (or TSS) coordinates and
@@ -466,5 +513,5 @@ annotate_de_output <- function(de_output, pert_coords, gene_coords) {
   ))
   
   return(de_output)
-
+  
 }

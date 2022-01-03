@@ -7,3 +7,6 @@
 *.html
 results/
 slurm_logs/
+resources/
+!resources/gencode.v26lift37.annotation.gtf.gz
+!resources/hg19_chr_sizes
