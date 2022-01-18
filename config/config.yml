@@ -21,6 +21,6 @@ power_simulations:
   remove_genes: NULL
   size_factors: "poscounts"
   fit_type: "parametric"
-  rep: 1
+  rep: 20
   pert_genes: 1
-  threads: 20
+  threads: 10

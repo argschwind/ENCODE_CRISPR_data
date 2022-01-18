@@ -23,13 +23,17 @@ suppressPackageStartupMessages({
 
 # register parallel backend if specified (if more than 1 thread provided)
 if (snakemake@threads > 1) {
+  message("Registering parallel backend with ", snakemake@threads, " cores.")
   register(MulticoreParam(workers = snakemake@threads))
 } else {
+  message("Registering serial backend.")
   register(SerialParam())
 }
 
-# set seed for reproducible results
-if (snakemake@params$seed > 0) set.seed(snakemake@params$seed)
+# set seed for reproducible results based on iteration
+if (snakemake@params$seed > 0) {
+  set.seed(snakemake@params$seed + as.integer(snakemake@wildcards$rep))
+}
 
 # prepare data =====================================================================================
 
@@ -41,15 +45,8 @@ sce <- readRDS(snakemake@input[[1]])
 pert_level <- switch(snakemake@wildcards$strategy, "perGRNA" = "grna_perts", "perCRE" = "cre_perts",
                      stop("incorrect strategy argument"))
 
-# filter cells for minimum and maximum number total UMIs per cell
-sce <- filter_umis_per_cell(sce, min_umis = snakemake@params$umis_per_cell[[1]],
-                            max_umis = snakemake@params$umis_per_cell[[2]])
-
 # filter for minimum number of cells per perturbation
 sce <- filter_cells_per_pert(sce, min_cells = snakemake@params$min_cells, pert_level = pert_level)
-
-# remove specific genes from power simulations
-sce <- sce[!rownames(sce) %in% snakemake@params$remove_genes, ]
 
 # perform power simulations ========================================================================
 
@@ -58,15 +55,10 @@ message("Normalizing transcript counts.")
 sce <- normalize_cens_mean(sce)
 assay(sce, "logcounts") <- log1p(assay(sce, "normcounts"))
 
-# fit negative binomial distributions to estimate gene-level dispersion
-message("Estimate dispersion using DESeq2:")
-sce <- fit_negbinom_deseq2(sce, size_factors = snakemake@params$size_factors,
-                           fit_type = snakemake@params$fit_type)
-
 # convert 'percentage decrease' effect size to 'relative expression level'
 effect_size <- 1 - as.numeric(snakemake@wildcards$effect)
 
-# simulate TAP-seq data and perform differential gene expression tests
+# simulate Perturb-seq data and perform differential gene expression tests
 message("Performing power simulations.")
 output <- simulate_diff_expr(sce, effect_size = effect_size,
                              pert_level = pert_level,
@@ -74,11 +66,14 @@ output <- simulate_diff_expr(sce, effect_size = effect_size,
                              genes_iter = snakemake@params$pert_genes,
                              guide_sd = as.numeric(snakemake@wildcards$sd),
                              center = FALSE,
-                             rep = snakemake@params$rep,
+                             rep = 1,
                              method = snakemake@wildcards$method,
                              formula = as.formula(snakemake@params$formula),
                              n_ctrl = snakemake@params$n_ctrl,
                              cell_batches = snakemake@params$cell_batches)
+
+# change iteration to correct repetition number (is 1 in output, since rep = 1 was used)
+output$iteration <- as.integer(snakemake@wildcards$rep)
 
 # extract DESeq2 outlier information for every gene
 message("Processing output.")

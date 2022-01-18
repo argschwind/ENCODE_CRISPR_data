@@ -1,6 +1,7 @@
 library(DESeq2)
 library(monocle)
 library(scran)
+library(dplyr)
 
 #' Fit negative binomial distributions using DESeq2
 #' 
@@ -136,7 +137,7 @@ simulate_diff_expr <- function(sce, effect_size, pert_level, max_dist = NULL, ge
   # check colData
   col_names <- colnames(colData(sce)) 
   if ("pert" %in% col_names) stop("'pert' cannot be a colData name, please rename.", call. = FALSE)
-
+  
   # check that formula contains 'pert'
   if (!"pert" %in% labels(terms(as.formula(formula)))) {
     stop("formula needs to contain 'pert' term to test for perturbation effects.", call. = FALSE)
@@ -149,7 +150,7 @@ simulate_diff_expr <- function(sce, effect_size, pert_level, max_dist = NULL, ge
   }
   
   # get required functions -------------------------------------------------------------------------
-
+  
   # get function to generate input data for one perturbation
   if (is.numeric(n_ctrl)) {
     pert_input_function <- pert_input_sampled
@@ -162,9 +163,9 @@ simulate_diff_expr <- function(sce, effect_size, pert_level, max_dist = NULL, ge
   
   # get correct simulation function based on whether guide variability should be simulated or not
   if (guide_sd == 0) {
-    sim_function <- sim_tapseq_pert
+    sim_function <- sim_perturbseq_pert
   } else if (guide_sd > 0) {
-    sim_function <- sim_tapseq_pert_gvar
+    sim_function <- sim_perturbseq_pert_gvar
   } else {
     stop("Invalid 'guide_sd' value. Must be >= 0.", call. = FALSE)
   }
@@ -181,37 +182,53 @@ simulate_diff_expr <- function(sce, effect_size, pert_level, max_dist = NULL, ge
   perts <- structure(guide_targets$target_id, names = guide_targets$target_id)
   
   # simulate Perturb-seq data and perform DE tests for every perturbation
-  output <- bplapply(perts, FUN = function(pert) {
-    
-    # repeatedly simulate Perturb-seq data for given perturbation and perform DE tests 
-    out_pert <- replicate(
-      n = rep,
-      expr = sim_function(pert, sce = sce, pert_level = pert_level, cell_batches = cell_batches,
-                          pert_input_function = pert_input_function, guide_targets = guide_targets, 
-                          genes_iter = genes_iter, effect_size = effect_size, guide_sd = guide_sd,
-                          center = center, de_function = de_function, max_dist = max_dist,
-                          formula = formula, n_ctrl = n_ctrl
-                          ),
-      simplify = FALSE)
-    
-    # combine output into one data.frame
-    dplyr::bind_rows(out_pert, .id = "iteration")
-    
-  })
+  output <- bplapply(perts, FUN = sim_perturbseq_pert_rep, rep = rep, sim_function = sim_function,
+                     sce = sce, pert_level = pert_level, cell_batches = cell_batches,
+                     pert_input_function = pert_input_function, guide_targets = guide_targets, 
+                     genes_iter = genes_iter, effect_size = effect_size, guide_sd = guide_sd,
+                     center = center, de_function = de_function, max_dist = max_dist,
+                     formula = formula, n_ctrl = n_ctrl)
   
-  # combine output
-  dplyr::bind_rows(output, .id = "perturbation")
+  # combine output into one data.frame and make "iteration" the first column
+  output <- bind_rows(output, .id = "perturbation")
+  output <- relocate(output, iteration)
+  
+  return(output)
   
 }
 
+#' Repeatedly perform simulated differential expression tests for one perturbation.
+#' 
+#' Simulate Perturb-seq data and perform differential expression tests a specified number of times.
+sim_perturbseq_pert_rep <- function(pert, rep, sim_function, sce, pert_level, cell_batches,
+                                    pert_input_function, guide_targets, genes_iter, effect_size,
+                                    guide_sd, center, de_function, max_dist, formula, n_ctrl) {
+  
+  # repeatedly simulate Perturb-seq data for given perturbation and perform DE tests
+  output <- replicate(
+    n = rep,
+    expr = sim_function(pert, sce = sce, pert_level = pert_level, cell_batches = cell_batches,
+                        pert_input_function = pert_input_function, guide_targets = guide_targets, 
+                        genes_iter = genes_iter, effect_size = effect_size, guide_sd = guide_sd,
+                        center = center, de_function = de_function, max_dist = max_dist,
+                        formula = formula, n_ctrl = n_ctrl),
+    simplify = FALSE)
+  
+  # combine output into one data.frame
+  output <- bind_rows(output, .id = "iteration")
+  output$iteration <- as.integer(output$iteration)
+  
+  return(output)
+  
+}
 
 #' Perform simulated differential expression tests for one perturbation.
 #' 
 #' Simulate Perturb-seq data for one perturbation for n = \code{genes_iter} genes at a time with an
 #' effect size specified by \code{effect_size}. Perform differential tests for every simulation
 #' using the DE function provided by \code{de_function}.
-sim_tapseq_pert <- function(pert, sce, pert_level, cell_batches, pert_input_function, guide_targets,
-                            genes_iter, effect_size, de_function, max_dist, formula, n_ctrl, ...) {
+sim_perturbseq_pert <- function(pert, sce, pert_level, cell_batches, pert_input_function, guide_targets,
+                                genes_iter, effect_size, de_function, max_dist, formula, n_ctrl, ...) {
   
   # create input object for DE tests
   pert_object <- pert_input_function(pert, sce = sce, pert_level = pert_level,
@@ -258,7 +275,7 @@ sim_tapseq_pert <- function(pert, sce, pert_level, cell_batches, pert_input_func
     formula = formula)
   
   # combine output into one data.frame
-  dplyr::bind_rows(output, .id = "pert_gene")
+  bind_rows(output, .id = "pert_gene")
   
 }
 
@@ -268,9 +285,9 @@ sim_tapseq_pert <- function(pert, sce, pert_level, cell_batches, pert_input_func
 #' Simulate Perturb-seq data for one perturbation for n = \code{genes_iter} genes at a time with an
 #' effect size specified by \code{effect_size}. Perform differential tests for every simulation
 #' using the DE function provided by \code{de_function}.
-sim_tapseq_pert_gvar <- function(pert, sce, pert_level, cell_batches, pert_input_function,
-                                 guide_targets, genes_iter, effect_size, guide_sd, center,
-                                 de_function, max_dist, formula, n_ctrl) {
+sim_perturbseq_pert_gvar <- function(pert, sce, pert_level, cell_batches, pert_input_function,
+                                     guide_targets, genes_iter, effect_size, guide_sd, center,
+                                     de_function, max_dist, formula, n_ctrl) {
   
   # create input object for DE tests
   pert_object <- pert_input_function(pert, sce = sce, pert_level = pert_level,
@@ -336,7 +353,7 @@ sim_tapseq_pert_gvar <- function(pert, sce, pert_level, cell_batches, pert_input
     de_function = de_function, formula = formula)
   
   # combine output into one data.frame
-  dplyr::bind_rows(output, .id = "pert_gene")
+  bind_rows(output, .id = "pert_gene")
   
 }
 
@@ -345,7 +362,7 @@ create_guide_targets <- function(sce, pert_level) {
   
   # make gRNAs the targets if pert_level is set to gRNAs, else use targeted elements
   targets <- ifelse(pert_level == "grna_perts", yes = "name", no = "target_name")
-
+  
   # create guide targets data.frame from gRNA annotations
   grnas_annot <- rowData(altExp(sce, "grna_perts"))
   guide_targets <- data.frame(grna_id = grnas_annot[, "name"], target_id = grnas_annot[, targets],
@@ -355,20 +372,6 @@ create_guide_targets <- function(sce, pert_level) {
   
 }
 
-# get gene names within a certain distance of a perturbation
-get_genes_within_dist <- function(sce, pert, max_dist) {
-  
-  # get genomic coordinates of perturbation pert
-  pert_annot <- rowData(altExp(sce, pert_level))
-  pert_annot <- makeGRangesFromDataFrame(pert_annot[pert, ])
-  
-  # only retain genes within max_dist from perturbation
-  pert_window <- resize(pert_annot, width = max_dist * 2, fix = "center")
-  dist_genes <- names(subsetByOverlaps(rowRanges(sce), pert_window, ignore.strand = TRUE))
-  
-  return(dist_genes)
-  
-}
 
 ## GENERALIZABLE SIMULATION FUNCTIONS ==============================================================
 

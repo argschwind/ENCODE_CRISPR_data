@@ -225,8 +225,8 @@ test_differential_expression <- function(sce, pert_level, max_dist = NULL,
 #'   (perturbations) in colData.
 #' @param formula Formula to use for differential expression tests. Default: '~ pert', which tests
 #'   for an effect of the perturbation status stored in colData as 'pert'.
-#'   
-de_MAST <- function(pert_object, formula = ~pert) {
+#' @param parallel Should multiple cores be used for fitting (default = FALSE)?
+de_MAST <- function(pert_object, formula = ~pert, parallel = FALSE) {
   
   # add some row- and colData expected by MAST (not used in DE tests)
   rowData(pert_object) <- cbind(rowData(pert_object), primerid = rownames(pert_object))
@@ -236,20 +236,22 @@ de_MAST <- function(pert_object, formula = ~pert) {
   sca <- SceToSingleCellAssay(pert_object)
   
   # fit hurdle model
-  zlm_fit <- zlm(as.formula(formula), sca = sca)
-  
+  zlm_fit <- zlm(as.formula(formula), sca = sca, parallel = parallel)
+
   # perform likelihood ratio test for the perturbation coefficient
-  summary_zlm_fit <- summary(zlm_fit, doLRT = "pert1")
+  summary_zlm_fit <- summary(zlm_fit, doLRT = "pert1", parallel = parallel)
   summary_dt <- summary_zlm_fit$datatable
-  
+
   # extract p-values and logFC for each gene
   pvals <- summary_dt[contrast == "pert1" & component == "H", .(primerid, `Pr(>Chisq)`)]
   lfc <- summary_dt[contrast == "pert1" & component == "logFC", .(primerid, coef, ci.hi, ci.lo)]
-  
-  # assemble and return output
+
+  # assemble and sort output
   output <- as.data.frame(merge(lfc, pvals, by = "primerid"))
   colnames(output) <- c("gene", "logFC", "ci_high", "ci_low", "pvalue")
-  output[order(output$pvalue), ]
+  output <- output[order(output$pvalue), ]
+
+  return(output)
   
 }
 

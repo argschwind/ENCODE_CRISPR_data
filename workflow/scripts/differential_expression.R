@@ -19,8 +19,10 @@ suppressPackageStartupMessages({
 
 # register parallel backend if specified (if more than 1 thread provided)
 if (snakemake@threads > 1) {
+  message("Registering parallel backend with ", snakemake@threads, " cores.")
   register(MulticoreParam(workers = snakemake@threads))
 } else {
+  message("Registering serial backend.")
   register(SerialParam())
 }
 

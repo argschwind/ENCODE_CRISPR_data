@@ -8,7 +8,13 @@ include: "rules/perform_diff_expr.smk"
 include: "rules/perform_power_simulations.smk"
 
 # perform all DE tests
-rule all:
+rule all_de_tests:
   input: 
     expand("results/Gasperini2019/diff_expr/output_MAST_{pert_level}.csv.gz",
            pert_level = ["perCRE", "perGRNA"])
+
+# perform all power analyses
+rule all_pwr_sims:
+  input:
+    expand("results/Gasperini2019/power_sim/power_{effect_size}_0.1gStd_MAST_perCRE.csv.gz",
+      effect_size = [0.25])

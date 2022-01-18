@@ -73,6 +73,7 @@ rule quantify_dnase:
     chrs = "resources/hg19_chr_sizes"
   output: "resources/DNase/{dnase_bam}/{dnase_bam}_peaks.counts"
   log: "resources/DNase/{dnase_bam}/logs/quantify_dnase.log"
+  conda: "../envs/r_create_gasperini_input.yml" 
   shell:
     "bedtools sort -faidx {input.chrs} -i {input.peaks} | "
     "bedtools coverage -sorted -a stdin -b {input.bam} -g {input.chrs} -counts > {output}"
@@ -145,6 +146,8 @@ rule create_sce_gasperini:
   output: "resources/Gasperini2019/perturb_sce.rds"
   log: "resources/Gasperini2019/logs/create_sce_gasperini.log"
   conda: "../envs/r_create_gasperini_input.yml"
+  resources:
+    mem = "32G"
   script:
     "../scripts/gasperini_dataset/create_sce_gasperini.R"
 
