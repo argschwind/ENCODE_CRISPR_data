@@ -10,7 +10,7 @@ knitr::opts_chunk$set(echo = FALSE)
 ```
 
 ## Goal
-Exporation of differential expression results from Gasperini dataset.
+Exploration of differential expression results from Gasperini dataset.
 
 ```{r requiredPackages, warning=FALSE, message=FALSE}
 library(rtracklayer)

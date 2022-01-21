@@ -3,8 +3,8 @@
 # to assess if the expression change can be detected, i.e. if the data for a given perturbation has
 # enough power to detect a change of a given effect size.
 
-#save.image(paste0("pwr_sim_", snakemake@wildcards$chr, ".rda"))
-#stop()
+# save.image(paste0("pwr_sim_", snakemake@wildcards$chr, ".rda"))
+# stop()
 
 # opening log file to collect all messages, warnings and errors
 tmp_logfile <- tools::file_path_sans_ext(snakemake@log[[1]])
@@ -21,18 +21,14 @@ suppressPackageStartupMessages({
   source(file.path(snakemake@scriptdir, "R_functions/power_simulations_fun.R"))
 })
 
-# register parallel backend if specified (if more than 1 thread provided)
+# register parallel backend if specified (if more than 1 thread provided) and set RNG seed
 if (snakemake@threads > 1) {
   message("Registering parallel backend with ", snakemake@threads, " cores.")
-  register(MulticoreParam(workers = snakemake@threads))
+  register(MulticoreParam(workers = snakemake@threads,
+                          RNGseed = as.integer(snakemake@wildcards$rep)))
 } else {
   message("Registering serial backend.")
-  register(SerialParam())
-}
-
-# set seed for reproducible results based on iteration
-if (snakemake@params$seed > 0) {
-  set.seed(snakemake@params$seed + as.integer(snakemake@wildcards$rep))
+  register(SerialParam(RNGseed = as.integer(snakemake@wildcards$rep)))
 }
 
 # prepare data =====================================================================================

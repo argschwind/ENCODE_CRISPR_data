@@ -1,7 +1,7 @@
 ## load power simulation output to compute power for one sample and effect size
 
-save.image("compute_pwr.rda")
-stop()
+# save.image("compute_pwr.rda")
+# stop()
 
 library(tidyverse)
 
@@ -23,7 +23,7 @@ col_types <- cols(
 )
 
 # load power simulation output files
-power_sim <- lapply(snakemake@input, FUN = read_csv, col_types = col_types, progress = FALSE)
+power_sim <- lapply(power_sim_files, FUN = read_csv, col_types = col_types, progress = FALSE)
 
 # combine into one data frame
 power_sim <- bind_rows(power_sim)

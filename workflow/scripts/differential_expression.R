@@ -1,8 +1,8 @@
 ## This snakemake R-script performs differential gene expression analysis for Perturb-seq
 ## perturbations to discover cis-regulatory interactions
 
-#save.image(paste0("diff_expr_", snakemake@wildcards$chr, ".rda"))
-#stop()
+# save.image(paste0("diff_expr_", snakemake@wildcards$chr, ".rda"))
+# stop()
 
 # opening log file to collect all messages, warnings and errors
 log <- file(snakemake@log[[1]], open = "wt")
@@ -17,17 +17,15 @@ suppressPackageStartupMessages({
   source(file.path(snakemake@scriptdir, "R_functions/differential_expression_fun.R")) 
 })
 
-# register parallel backend if specified (if more than 1 thread provided)
+# register parallel backend if specified (if more than 1 thread provided) and set RNG seed
 if (snakemake@threads > 1) {
   message("Registering parallel backend with ", snakemake@threads, " cores.")
-  register(MulticoreParam(workers = snakemake@threads))
+  register(MulticoreParam(workers = snakemake@threads,
+                          RNGseed = snakemake@params$seed))
 } else {
   message("Registering serial backend.")
-  register(SerialParam())
+  register(SerialParam(RNGseed = snakemake@params$seed))
 }
-
-# set seed for reproducible results
-if (snakemake@params$seed > 0) set.seed(snakemake@params$seed)
 
 # prepare data =====================================================================================
 

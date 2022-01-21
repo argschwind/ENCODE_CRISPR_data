@@ -179,8 +179,9 @@ simulate_diff_expr <- function(sce, effect_size, pert_level, max_dist = NULL, ge
   guide_targets <- create_guide_targets(sce, pert_level = pert_level)
   
   # create vector of perturbations to test
-  perts <- structure(guide_targets$target_id, names = guide_targets$target_id)
-  
+  perts <- unique(guide_targets$target_id)
+  names(perts) <- perts
+
   # simulate Perturb-seq data and perform DE tests for every perturbation
   output <- bplapply(perts, FUN = sim_perturbseq_pert_rep, rep = rep, sim_function = sim_function,
                      sce = sce, pert_level = pert_level, cell_batches = cell_batches,
@@ -203,21 +204,21 @@ simulate_diff_expr <- function(sce, effect_size, pert_level, max_dist = NULL, ge
 sim_perturbseq_pert_rep <- function(pert, rep, sim_function, sce, pert_level, cell_batches,
                                     pert_input_function, guide_targets, genes_iter, effect_size,
                                     guide_sd, center, de_function, max_dist, formula, n_ctrl) {
-  
+
   # repeatedly simulate Perturb-seq data for given perturbation and perform DE tests
   output <- replicate(
     n = rep,
     expr = sim_function(pert, sce = sce, pert_level = pert_level, cell_batches = cell_batches,
-                        pert_input_function = pert_input_function, guide_targets = guide_targets, 
+                        pert_input_function = pert_input_function, guide_targets = guide_targets,
                         genes_iter = genes_iter, effect_size = effect_size, guide_sd = guide_sd,
                         center = center, de_function = de_function, max_dist = max_dist,
                         formula = formula, n_ctrl = n_ctrl),
     simplify = FALSE)
-  
+
   # combine output into one data.frame
   output <- bind_rows(output, .id = "iteration")
   output$iteration <- as.integer(output$iteration)
-  
+
   return(output)
   
 }
@@ -238,42 +239,42 @@ sim_perturbseq_pert <- function(pert, sce, pert_level, cell_batches, pert_input_
   if (!is.null(max_dist)) {
     pert_object <- filt_max_dist_pert(pert_object, pert = pert, max_dist = max_dist)
   }
-  
+
   # get genes and split into random batches
   genes <- sample(rownames(pert_object))  # randomized gene names
   n_genes <- length(genes)
   n_batches <- ceiling(n_genes / genes_iter)
   gene_batches <- split(genes, f = seq_along(genes) %% n_batches)
   names(gene_batches) <- vapply(gene_batches, FUN = paste, collapse = "_", FUN.VALUE = character(1))
-  
+
   # simulate Perturb-seq data for every batch of simulated perturbations
   output <- lapply(
     X = gene_batches,
     FUN = function(pert_object, batch, effect_size, de_function, formula) {
-      
+
       # effect sizes for selected batch of genes
       effect_sizes <- structure(rep(1, nrow(pert_object)), names = rownames(pert_object))
       effect_sizes[batch] <- effect_size
-      
+
       # create effect size matrix
       pert_status <- colData(pert_object)[, "pert"]
       es_mat <- create_effect_size_matrix(pert_status, gene_effect_sizes = effect_sizes)
-      
+
       # simulate Perturb-seq count data
       sim_object <- sim_tapseq_sce(pert_object, effect_size_mat = es_mat)
-      
+
       # normalize counts using real data normalization factors and log transform
       norm_factors <- colData(sim_object)[, "norm_factors"]
       assay(sim_object, "normcounts") <- t(t(assay(sim_object, "counts")) / norm_factors)
       assay(sim_object, "logcounts") <- log1p(assay(sim_object, "normcounts"))
-      
+
       # perform differential gene expression test
       de_function(sim_object, formula = formula)
-      
+
     },
     pert_object = pert_object, effect_size = effect_size, de_function = de_function,
     formula = formula)
-  
+
   # combine output into one data.frame
   bind_rows(output, .id = "pert_gene")
   
@@ -288,70 +289,70 @@ sim_perturbseq_pert <- function(pert, sce, pert_level, cell_batches, pert_input_
 sim_perturbseq_pert_gvar <- function(pert, sce, pert_level, cell_batches, pert_input_function,
                                      guide_targets, genes_iter, effect_size, guide_sd, center,
                                      de_function, max_dist, formula, n_ctrl) {
-  
+
   # create input object for DE tests
   pert_object <- pert_input_function(pert, sce = sce, pert_level = pert_level,
                                      cell_batches = cell_batches, n_ctrl = n_ctrl)
-  
+
   # get perturbation status and gRNA perturbations for all cells
   pert_status <- colData(pert_object)$pert
   grna_perts <- assay(altExp(pert_object, "grna_perts"), "perts")
-  
+
   # get guide ids of guides targeting the perturbed regulatory element
   pert_guides <- guide_targets[guide_targets$target_id == pert, "grna_id"]
-  
+
   # create vector with the gRNA perturbation status for each cell
   grna_pert_status <- create_guide_pert_status(pert_status, grna_perts = grna_perts,
                                                pert_guides = pert_guides)
-  
+
   # only retain genes within maximum distance if specified
   if (!is.null(max_dist)) {
     pert_object <- filt_max_dist_pert(pert_object, pert = pert, max_dist = max_dist)
   }
-  
+
   # get genes and split into random batches
   genes <- sample(rownames(pert_object))  # randomized gene names
   n_genes <- length(genes)
   n_batches <- ceiling(n_genes / genes_iter)
   gene_batches <- split(genes, f = seq_along(genes) %% n_batches)
   names(gene_batches) <- vapply(gene_batches, FUN = paste, collapse = "_", FUN.VALUE = character(1))
-  
+
   # simulate Perturb-seq data for every batch of simulated perturbations
   output <- lapply(
     X = gene_batches,
     FUN = function(pert_object, batch, effect_size, grna_pert_status, pert_guides, guide_sd, center,
                    pert_status, de_function, formula) {
-      
+
       # effect sizes for selected batch of genes
       effect_sizes <- structure(rep(1, nrow(pert_object)), names = rownames(pert_object))
       effect_sizes[batch] <- effect_size
-      
+
       # create effect size matrix
       es_mat <- create_es_mat_gvar(grna_pert_status, pert_guides = pert_guides,
                                    gene_effect_sizes = effect_sizes, guide_sd = guide_sd)
-      
+
       # center effect sizes on specified gene-level effect sizes
       if (center == TRUE) {
         es_mat <- center_es_mat_gvar(es_mat, pert_status = pert_status,
                                      gene_effect_sizes = effect_sizes)
       }
-      
+
       # simulate Perturb-seq count data
       sim_object <- sim_tapseq_sce(pert_object, effect_size_mat = es_mat)
-      
+
       # normalize counts using real data normalization factors and log transform
       norm_factors <- colData(sim_object)[, "norm_factors"]
       assay(sim_object, "normcounts") <- t(t(assay(sim_object, "counts")) / norm_factors)
       assay(sim_object, "logcounts") <- log1p(assay(sim_object, "normcounts"))
-      
+
       # perform differential gene expression test
       de_function(sim_object, formula = formula)
-      
+
     },
     pert_object = pert_object, effect_size = effect_size, grna_pert_status = grna_pert_status,
     pert_guides = pert_guides, guide_sd = guide_sd, center = center, pert_status = pert_status,
     de_function = de_function, formula = formula)
-  
+
   # combine output into one data.frame
   bind_rows(output, .id = "pert_gene")
   

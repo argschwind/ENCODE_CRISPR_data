@@ -28,13 +28,12 @@ rule perform_power_simulations:
     formula = config["diff_expr"]["formula"],
     n_ctrl = config["diff_expr"]["n_ctrl"],
     cell_batches = None,
-    pert_genes = config["power_simulations"]["pert_genes"],
-    seed = 20211217
+    pert_genes = config["power_simulations"]["pert_genes"]
   log: "results/{sample}/logs/power_sim/power_sim_{chr}_rep{rep}_{effect}_{sd}gStd_{method}_{strategy}.log.gz"
   threads: config["power_simulations"]["threads"]
   conda: "../envs/r_process_crispr_data.yml"
   resources:
-    mem = "48G",
+    mem = "24G",
     time = "24:00:00"
   script:
    "../scripts/power_simulations.R"
@@ -43,7 +42,7 @@ rule perform_power_simulations:
 rule compute_power:
   input:
     expand("results/{{sample}}/power_sim/{chr}_rep{rep}_output_{{effect}}_{{sd}}gStd_{{method}}_{{strategy}}.csv.gz",
-      chr = ["chr" + str(i)  for i in [*range(10, 23), "X"]],
+      chr = ["chr" + str(i)  for i in [*range(1, 23), "X"]],
       rep = range(1, config["power_simulations"]["rep"] + 1))
   output:
     "results/{sample}/power_sim/power_{effect}_{sd}gStd_{method}_{strategy}.csv.gz"

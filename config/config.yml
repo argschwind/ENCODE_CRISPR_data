@@ -23,4 +23,4 @@ power_simulations:
   fit_type: "parametric"
   rep: 20
   pert_genes: 1
-  threads: 10
+  threads: 1
