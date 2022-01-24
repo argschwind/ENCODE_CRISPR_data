@@ -13,8 +13,14 @@ rule all_de_tests:
     expand("results/Gasperini2019/diff_expr/output_MAST_{pert_level}.csv.gz",
            pert_level = ["perCRE", "perGRNA"])
 
+# generate all input for power simulations           
+rule pwr_input:
+  input: 
+    expand("resources/Gasperini2019/perturb_sce_disp.{chr}.rds",
+    chr = ["chr" + str(i)  for i in [*range(1, 23), "X"]])
+
 # perform all power analyses
 rule all_pwr_sims:
   input:
-    expand("results/Gasperini2019/power_sim/power_{effect_size}_0.1gStd_MAST_perCRE.csv.gz",
+    expand("results/Gasperini2019/power_sim/power_{effect_size}_0.06gStd_MAST_perCRE.csv.gz",
       effect_size = [0.25])

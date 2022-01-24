@@ -1,9 +1,28 @@
 ## Rules to perform empirical power simulations for Perturb-seq experiment
 
-# fit negative binomial distribution
+# extimate guide-guide variability from differential expression results
+rule estimate_guide_variability:
+  input:
+    per_target = "results/{sample}/diff_expr/output_{method}_perCRE.csv.gz",
+    per_guide = "results/{sample}/diff_expr/output_{method}_perGRNA.csv.gz",
+    guide_targets = "resources/{sample}/guide_targets.tsv"
+  output: 
+    guide_var = "results/{sample}/guide_variability_{method}.csv",
+    distr_fit = "results/{sample}/guide_variability_distribution_{method}.csv",
+    plots = "results/{sample}/guide_variability_{method}.pdf"
+  params:
+    effect_size_col = "logFC",
+    fdr_sig = 0.05,
+    fdr_nonsig = 0.1,
+    cells_per_guide = 25
+  conda: "../envs/r_process_crispr_data.yml"
+  script:
+    "../scripts/estimate_guide_variability.R"
+
+# fit negative binomial distribution to estimate dispersions
 rule fit_negbinom_distr:
   input: "resources/{sample}/perturb_sce.{chr}.rds"
-  output: temp("resources/{sample}/perturb_sce_distr.{chr}.rds")
+  output: temp("resources/{sample}/perturb_sce_disp.{chr}.rds")
   params:
     umis_per_cell = config["diff_expr"]["umis_per_cell"]["Gasperini"],
     remove_genes = config["power_simulations"]["remove_genes"],
@@ -13,13 +32,13 @@ rule fit_negbinom_distr:
   conda: "../envs/r_process_crispr_data.yml"
   resources:
     mem = "32G",
-    time = "2:00:00"
+    time = "5:00:00"
   script:
     "../scripts/fit_negbinom_distr.R"
 
 # perform power simulations by submitting one iteration at a time
 rule perform_power_simulations:
-  input: "resources/{sample}/perturb_sce_distr.{chr}.rds"
+  input: "resources/{sample}/perturb_sce_disp.{chr}.rds"
   output:
     temp("results/{sample}/power_sim/{chr}_rep{rep}_output_{effect}_{sd}gStd_{method}_{strategy}.csv.gz")
   params:
