@@ -321,7 +321,7 @@ de_LFC <- function(pert_object, assay = "logcounts", pseudocount = 1, ...) {
 # HELPER FUNCTIONS =================================================================================
 
 # filter a Perturb-seq SCE object for genes within a specified distance of a given perturbation
-filt_max_dist_pert <- function(sce, pert, max_dist) {
+filt_max_dist_pert <- function(sce, pert_level, pert, max_dist) {
   
   # get genomic coordinates of perturbation pert
   pert_annot <- rowData(altExp(sce, pert_level))
@@ -346,7 +346,8 @@ test_de <- function(pert, sce, pert_level, cell_batches, pert_input_function, ma
   
   # only retain genes within maximum distance if specified
   if (!is.null(max_dist)) {
-    pert_object <- filt_max_dist_pert(pert_object, pert = pert, max_dist = max_dist)
+    pert_object <- filt_max_dist_pert(pert_object, pert_level = pert_level, pert = pert,
+                                      max_dist = max_dist)
   }
   
   # perform differential gene expression test. warnings and errors get reported and in case of
