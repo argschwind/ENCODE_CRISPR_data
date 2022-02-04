@@ -1,3 +1,5 @@
+
+# required packages
 library(dplyr)
 library(ggplot2)
 library(tidyr)
@@ -7,18 +9,22 @@ library(cowplot)
 # estimate guide variability using a linear model and fit normal distribution to output
 estimate_guide_variability <- function(per_target, per_guide, guide_targets, cells_per_guide = 25,
                                        effect_size = c("logFC", "log2FC", "pctChange"),
+                                       pct_change_range = c(-Inf, Inf),
                                        return_plots = FALSE) {
   
   # only retain per-guide results with a specified minimum of cells
-  per_guide <- dplyr::filter(per_guide, cells >= cells_per_guide)
+  per_guide <- filter(per_guide, cells >= cells_per_guide)
   
   # merge per-target and per-guide differential expression results
   merged <- combine_de_results(per_target = per_target, per_guide = per_guide,
                                guide_targets = guide_targets, effect_size = effect_size)
   
-  # fit linear model to estimate guide vaiability
-  guide_var <- fit_guide_var_model(merged)
+  # filter pairs for per-target percentage change range 
+  merged <- merged %>% 
+    filter(target_effect_size >= pct_change_range[[1]], target_effect_size <= pct_change_range[[2]])
   
+  # fit linear model to estimate guide variability
+  guide_var <- fit_guide_var_model(merged)
   
   # fit normal distribution and extract fitted parameters
   distr_fit <- fitdistr(guide_var$guide_var, densfun = "normal")
@@ -59,8 +65,8 @@ combine_de_results <- function(per_target, per_guide, guide_targets,
   }
   
   # filter out any cases with NA effect size
-  per_target <- dplyr::filter(per_target, !is.na(effect_size))
-  per_guide <- dplyr::filter(per_guide, !is.na(effect_size))
+  per_target <- filter(per_target, !is.na(effect_size))
+  per_guide <- filter(per_guide, !is.na(effect_size))
   
   # select required column to merge de results
   per_target_merge <- dplyr::select(per_target, target = perturbation, gene,

@@ -7,13 +7,12 @@ rule estimate_guide_variability:
     per_guide = "results/{sample}/diff_expr/output_{method}_perGRNA.csv.gz",
     guide_targets = "resources/{sample}/guide_targets.tsv"
   output: 
-    guide_var = "results/{sample}/guide_variability_{method}.csv",
-    distr_fit = "results/{sample}/guide_variability_distribution_{method}.csv",
-    plots = "results/{sample}/guide_variability_{method}.pdf"
+    guide_var = "results/guide_var/{sample}/guide_variability_{method}.csv",
+    distr_fit = "results/guide_var/{sample}/guide_variability_distribution_{method}.csv",
+    plots = "results/guide_var/{sample}/guide_variability_{method}.pdf"
   params:
     effect_size_col = "logFC",
     fdr_sig = 0.05,
-    fdr_nonsig = 0.1,
     cells_per_guide = 25
   conda: "../envs/r_process_crispr_data.yml"
   script:
@@ -47,13 +46,13 @@ rule perform_power_simulations:
     formula = config["diff_expr"]["formula"],
     n_ctrl = config["diff_expr"]["n_ctrl"],
     cell_batches = None,
-    pert_genes = config["power_simulations"]["pert_genes"]
+    genes_iter = True
   log: "results/{sample}/logs/power_sim/power_sim_{chr}_rep{rep}_{effect}_{sd}gStd_{method}_{strategy}.log.gz"
   threads: config["power_simulations"]["threads"]
   conda: "../envs/r_process_crispr_data.yml"
   resources:
-    mem = "24G",
-    time = "24:00:00"
+    mem = "12G",
+    time = "48:00:00"
   script:
    "../scripts/power_simulations.R"
    
@@ -66,8 +65,7 @@ rule compute_power:
   output:
     "results/{sample}/power_sim/power_{effect}_{sd}gStd_{method}_{strategy}.csv.gz"
   params:
-    fdr = 0.05,
-    seed = 210928
+    fdr = config["diff_expr"]["padj_threshold"]
   conda: "../envs/r_process_crispr_data.yml"
   script:
     "../scripts/compute_power.R"

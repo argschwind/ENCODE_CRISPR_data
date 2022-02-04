@@ -15,6 +15,7 @@ diff_expr:
   formula: "~pert+scale(detected_genes)"
   n_ctrl: 5000
   padj_method: "fdr"
+  padj_threshold: 0.05
   threads: 5
 
 power_simulations:
@@ -22,5 +23,4 @@ power_simulations:
   size_factors: "poscounts"
   fit_type: "parametric"
   rep: 20
-  pert_genes: 1
   threads: 1

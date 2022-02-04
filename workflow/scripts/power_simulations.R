@@ -59,7 +59,7 @@ message("Performing power simulations.")
 output <- simulate_diff_expr(sce, effect_size = effect_size,
                              pert_level = pert_level,
                              max_dist = as.numeric(snakemake@params$max_dist),
-                             genes_iter = snakemake@params$pert_genes,
+                             genes_iter = snakemake@params$genes_iter,
                              guide_sd = as.numeric(snakemake@wildcards$sd),
                              center = FALSE,
                              rep = 1,
