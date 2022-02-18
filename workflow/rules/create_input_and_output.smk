@@ -1,4 +1,13 @@
-## Rules to combine and format differential expression and power analysis output
+## Rules to create worflow input and output
+
+# download gencode annotations
+rule download_gencode_annotations:
+  output: "resources/{annot}.annotation.gtf.gz"
+  params:
+    url = lambda wildcards: config["download_urls"][wildcards.annot]
+  conda: "../envs/r_process_crispr_data.yml"
+  shell:
+    "wget -O {output} {params.url}"
 
 # compile output files in ENCODE format
 rule create_encode_dataset:
@@ -18,7 +27,7 @@ rule create_encode_dataset:
     reference = lambda wildcards: config["metadata"][wildcards.sample]["reference"]
   conda: "../envs/r_process_crispr_data.yml"
   script:
-    "../scripts/create_output_dataset.R"
+    "../scripts/create_output.R"
 
 # plot power analysis results
 rule power_analysis:

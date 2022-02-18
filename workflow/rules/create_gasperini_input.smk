@@ -19,15 +19,6 @@ rule download_gasperini_grnas:
   conda: "../envs/r_process_crispr_data.yml"
   shell:
     "wget -O {output} {params.url}"
-    
-# download gencode annotations
-rule download_gencode_annotations:
-  output: "resources/{annot}.annotation.gtf.gz"
-  params:
-    url = lambda wildcards: config["download_urls"][wildcards.annot]
-  conda: "../envs/r_process_crispr_data.yml"
-  shell:
-    "wget -O {output} {params.url}"
 
 # download and process DNase-seq data --------------------------------------------------------------
     

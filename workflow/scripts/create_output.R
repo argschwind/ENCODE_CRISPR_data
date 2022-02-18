@@ -1,7 +1,7 @@
 ## Combine differential expression and power simulation results to create output data sets
 
-# save.image("create_dataset.rda")
-# stop()
+save.image("create_dataset.rda")
+stop()
 
 # required packages
 library(tidyverse)
@@ -10,7 +10,7 @@ library(rtracklayer)
 # load input data ----------------------------------------------------------------------------------
 
 # column types in DE results 
-diff_expr_cols <-cols(
+diff_expr_cols <- cols(
   perturbation = col_character(),
   gene = col_character(),
   logFC = col_double(),
