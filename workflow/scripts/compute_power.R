@@ -1,8 +1,6 @@
 ## load power simulation output to compute power for one sample and effect size
 
-# save.image("compute_pwr.rda")
-# stop()
-
+# required packages
 library(tidyverse)
 
 # column types of power simulation files
@@ -26,12 +24,15 @@ power_sim <- bind_rows(power_sim)
 
 # compute power to detect repression effect of each enhancer - gene pair
 power <- power_sim %>% 
-  filter(perturbed == TRUE) %>% 
+  filter(perturbed == TRUE, !is.na(logFC)) %>% 
   group_by(iteration) %>% 
   mutate(pval_adj = p.adjust(pvalue, method = "fdr")) %>% 
   group_by(perturbation, gene, disp_outlier_deseq2) %>%
-  summarize(power = mean(pval_adj < snakemake@params$fdr), .groups = "drop") %>% 
+  summarize(power = mean(pval_adj < snakemake@params$fdr & logFC < 0), .groups = "drop") %>% 
   arrange(desc(power))
+
+# add effect simulated size
+power$effect_size <- as.numeric(snakemake@wildcards$effect)
 
 # save power calculations to output file
 write_csv(power, file = snakemake@output[[1]])

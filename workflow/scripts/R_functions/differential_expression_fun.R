@@ -43,28 +43,45 @@ normalize_cens_mean <- function(sce, percentile = 0.9, assay = "counts") {
 #' 
 #' @param sce A SingleCellExperiment object containing digital gene expression data for all cells
 #'   and genes to be normalized.
+#' @param percentile Only genes within specified expression quantile will be used to compute size
+#'   factors. Default = c(0, 0.9), which excludes to top 10% expressed genes. Set to c(0, 1) to
+#'   include all genes for size factor calculation (DESeq2 default).
+#' @param norm_genes (optional) Numeric or logical index vector specifying genes to use for size
+#'   factor estimation. Use this to compute size factors from e.g. house-keeping genes or known 
+#'   unperturbed genes.
 #' @param locfun A function to compute a location for a sample (default: median, see
 #'   ?estimateSizeFactorsForMatrix for more information)
 #' @param type Compute size factors using standard median ("ratio") or positive counts only
 #'   ("poscounts"). See ?estimateSizeFactorsForMatrix for more information.
-#' @param assay Assay to be normalized (default: counts).
-normalize_deseq <- function(sce, locfunc = stats::median, type = c("ratio", "poscounts"),
+#' @param assay Name of the assay containing counts to be normalized (default: counts).
+normalize_deseq <- function(sce, expr_quantile = c(0, 0.9), norm_genes = NULL,
+                            locfunc = stats::median, type = c("poscounts", "ratio"),
                             assay = "counts") {
   
   type <- match.arg(type)
   
-  # extract gene expression data
+  # extract counts to normalize
   counts <- assay(sce, assay)
   
+  # if no gene list for normalization is provided, get genes within expression quantile range
+  if (is.null(norm_genes)) {
+    message("Filtering genes based on expression quantile.")
+    norm_genes <- get_genes_expr_quantile(counts, expr_quantile = expr_quantile)
+  } else {
+    message("Using provided genes for size factor estimation.")
+  }
+  
   # compute size factors
-  norm_factors <- DESeq2::estimateSizeFactorsForMatrix(counts, locfunc = locfunc, type = type)
+  message("Estimating size factors.")
+  size_factors <- DESeq2::estimateSizeFactorsForMatrix(counts, locfunc = locfunc,
+                                                       controlGenes = norm_genes, type = type)
   
   # normalize data of each cell based on computed size factors
-  normcounts <- t(t(counts) / norm_factors)
-  
+  normcounts <- t(t(counts) / size_factors)
+
   # add normalized data and normalization factors to sce object
   assay(sce, "normcounts") <- normcounts
-  colData(sce)[, "norm_factors"] <- norm_factors
+  colData(sce)[, "norm_factors"] <- size_factors
   return(sce)
   
 }
@@ -320,6 +337,18 @@ de_LFC <- function(pert_object, assay = "logcounts", pseudocount = 1, ...) {
 
 # HELPER FUNCTIONS =================================================================================
 
+# get genes within expression percentiles based on total expression across all cells
+get_genes_expr_quantile <- function(expr, expr_quantile = c(0, 0.9)) {
+  
+  # get genes within desired expression percentile
+  total_expr <- rowSums(expr)
+  quants <- quantile(total_expr, probs = expr_quantile)
+  gene_filt <- total_expr >= quants[[1]] & total_expr <= quants[[2]]
+  
+  return(gene_filt)
+  
+}
+
 # filter a Perturb-seq SCE object for genes within a specified distance of a given perturbation
 filt_max_dist_pert <- function(sce, pert_level, pert, max_dist) {
   
@@ -358,8 +387,7 @@ test_de <- function(pert, sce, pert_level, cell_batches, pert_input_function, ma
     }, warning = function(w) {
       message("For perturbation ", pert, ": ", w)
       invokeRestart("muffleWarning")
-    }),
-    error = function(e){
+    }), error = function(e){
       message("For perturbation ", pert, ": ", e)
       return(NULL)
     })

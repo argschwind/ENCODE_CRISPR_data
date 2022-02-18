@@ -1,0 +1,73 @@
+---
+title: "Guide variability comparison Gasperini"
+author: "Andreas Gschwind"
+date: "`r format(Sys.time(), '%B %d, %Y')`"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = FALSE)
+```
+
+```{r requiredPackages, message=FALSE}
+library(tidyverse)
+```
+
+## Goal
+Investigate the impact of various levels of guide variability on power.
+
+```{r loadData}
+# files containing power simulation results
+sim_output_files <- unlist(snakemake@input)
+names(sim_output_files) <- sub("^.+guide_var_simulations/(.+)/.+_(.+)_(.+)gStd_.+$", "\\1_\\2_\\3",
+                               sim_output_files)
+
+# column types in simulation output files
+sim_output_cols <- cols(
+  iteration = col_double(),
+  perturbation = col_character(),
+  gene = col_character(),
+  perturbed = col_logical(),
+  logFC = col_double(),
+  ci_high = col_double(),
+  ci_low = col_double(),
+  pvalue = col_double(),
+  disp_outlier_deseq2 = col_logical()
+)
+
+# load all simulation results
+sim_output <- lapply(sim_output_files, FUN = read_csv, col_types = sim_output_cols,
+                     progress = FALSE)
+
+# combine into one data frame and split name into effect size and guide sd
+sim_output <- sim_output %>% 
+  bind_rows(.id = "name") %>% 
+  separate(name, into = c("norm_approach", "effect_size", "guide_sd"), sep = "_", convert = TRUE)
+```
+
+```{r power, fig.width=7, fig.height=7}
+# compute power for each effect size and guide variability set
+power <- sim_output %>% 
+  filter(perturbed == TRUE, !is.na(logFC)) %>% 
+  group_by(norm_approach, effect_size, guide_sd, iteration) %>% 
+  mutate(pval_adj = p.adjust(pvalue, method = "fdr")) %>% 
+  group_by(norm_approach, effect_size, guide_sd, perturbation, gene, disp_outlier_deseq2) %>%
+  summarize(power = mean(pval_adj < 0.05 & logFC < 0), .groups = "drop") %>% 
+  arrange(desc(power))
+
+# add power rank and percent of pairs
+power <- power %>% 
+  group_by(norm_approach, effect_size, guide_sd) %>% 
+  arrange(desc(power)) %>% 
+  mutate(power_rank = seq_len(n()),
+         power_pct = power_rank / n())
+
+# plot power for different degrees of guide variability
+ggplot(power, aes(x = power_pct, y = power, color = as.factor(guide_sd))) +
+  facet_grid(norm_approach~effect_size) +
+  geom_hline(yintercept = 0.8, lty = "dashed") +
+  geom_line(lwd = 1) +
+  labs(title = "Power chr 21", y = "Power", x = "Tested E-G pairs") +
+  scale_x_continuous(labels = scales::percent) +
+  theme_bw()
+```

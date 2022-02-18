@@ -2,7 +2,7 @@
 # urls to download data
 download_urls:
   gasperini_cds: "https://ftp.ncbi.nlm.nih.gov/geo/series/GSE120nnn/GSE120861/suppl/GSE120861_at_scale_screen.cds.rds.gz"
-  gencode_v26lift37: "http://ftp.ebi.ac.uk/pub/databases/gencode/Gencode_human/release_26/GRCh37_mapping/gencode.v26lift37.annotation.gtf.gz"
+  gencode.v26lift37: "http://ftp.ebi.ac.uk/pub/databases/gencode/Gencode_human/release_26/GRCh37_mapping/gencode.v26lift37.annotation.gtf.gz"
   ENCFF030DCL: "https://www.encodeproject.org/files/ENCFF030DCL/@@download/ENCFF030DCL.bam"
 
 diff_expr:
@@ -16,11 +16,20 @@ diff_expr:
   n_ctrl: 5000
   padj_method: "fdr"
   padj_threshold: 0.05
-  threads: 5
+  threads: 1
 
 power_simulations:
+  effect_sizes: [0.1, 0.25, 0.5]
   remove_genes: NULL
   size_factors: "poscounts"
   fit_type: "parametric"
+  norm: "sim_nonpert"
   rep: 20
   threads: 1
+
+# additional metadata per experiment
+metadata:
+  Gasperini2019:
+    cell_type: "K562"
+    reference: "Gasperini et al., 2019"
+    

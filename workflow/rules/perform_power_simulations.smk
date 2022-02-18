@@ -39,27 +39,28 @@ rule fit_negbinom_distr:
 rule perform_power_simulations:
   input: "resources/{sample}/perturb_sce_disp.{chr}.rds"
   output:
-    temp("results/{sample}/power_sim/{chr}_rep{rep}_output_{effect}_{sd}gStd_{method}_{strategy}.csv.gz")
+    temp("results/{sample}/power_sim/{chr}/{chr}_rep{rep}_output_{effect}_{sd}gStd_{method}_{strategy}.csv.gz")
   params:
     min_cells = lambda wildcards: config["diff_expr"]["min_cells"][wildcards.strategy],
     max_dist = config["diff_expr"]["max_dist"],
     formula = config["diff_expr"]["formula"],
     n_ctrl = config["diff_expr"]["n_ctrl"],
+    norm = config["power_simulations"]["norm"],
     cell_batches = None,
-    genes_iter = True
-  log: "results/{sample}/logs/power_sim/power_sim_{chr}_rep{rep}_{effect}_{sd}gStd_{method}_{strategy}.log.gz"
+    genes_iter = False
+  log: "results/{sample}/logs/power_sim/{chr}/power_sim_{chr}_rep{rep}_{effect}_{sd}gStd_{method}_{strategy}.log.gz"
   threads: config["power_simulations"]["threads"]
   conda: "../envs/r_process_crispr_data.yml"
   resources:
-    mem = "12G",
-    time = "48:00:00"
+    mem = "24G",
+    time = "24:00:00"
   script:
    "../scripts/power_simulations.R"
    
 # compute power
 rule compute_power:
   input:
-    expand("results/{{sample}}/power_sim/{chr}_rep{rep}_output_{{effect}}_{{sd}}gStd_{{method}}_{{strategy}}.csv.gz",
+    expand("results/{{sample}}/power_sim/{chr}/{chr}_rep{rep}_output_{{effect}}_{{sd}}gStd_{{method}}_{{strategy}}.csv.gz",
       chr = ["chr" + str(i)  for i in [*range(1, 23), "X"]],
       rep = range(1, config["power_simulations"]["rep"] + 1))
   output:

@@ -21,6 +21,10 @@ suppressPackageStartupMessages({
   source(file.path(snakemake@scriptdir, "R_functions/power_simulations_fun.R"))
 })
 
+# parse method wildcard and attach required packages
+method <- snakemake@wildcards$method
+library(method, character.only = TRUE)
+
 # register parallel backend if specified (if more than 1 thread provided) and set RNG seed
 if (snakemake@threads > 1) {
   message("Registering parallel backend with ", snakemake@threads, " cores.")
@@ -54,6 +58,9 @@ assay(sce, "logcounts") <- log1p(assay(sce, "normcounts"))
 # convert 'percentage decrease' effect size to 'relative expression level'
 effect_size <- 1 - as.numeric(snakemake@wildcards$effect)
 
+# get differential expression function based on method from wildcards
+de_function <- get(paste0("de_", method))
+
 # simulate Perturb-seq data and perform differential gene expression tests
 message("Performing power simulations.")
 output <- simulate_diff_expr(sce, effect_size = effect_size,
@@ -63,7 +70,8 @@ output <- simulate_diff_expr(sce, effect_size = effect_size,
                              guide_sd = as.numeric(snakemake@wildcards$sd),
                              center = FALSE,
                              rep = 1,
-                             method = snakemake@wildcards$method,
+                             norm = snakemake@params$norm,
+                             de_function = de_function,
                              formula = as.formula(snakemake@params$formula),
                              n_ctrl = snakemake@params$n_ctrl,
                              cell_batches = snakemake@params$cell_batches)

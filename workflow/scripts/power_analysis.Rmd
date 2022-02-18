@@ -1,0 +1,145 @@
+---
+title: "Gasperini power analysis"
+author: "Andreas Gschwind"
+date: "`r format(Sys.time(), '%B %d, %Y')`"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = FALSE)
+```
+
+### Goal
+Exploration of power analysis results from Gasperini dataset.
+
+```{r requiredPackages, warning=FALSE, message=FALSE}
+library(tidyverse)
+library(cowplot)
+```
+
+***
+
+### Power across effect sizes
+Power across all effect sizes is plotted across all tested enhancer - gene pairs.
+
+```{r}
+# column types in results file
+results_cols <- cols(
+  chrom = col_character(),
+  chromStart = col_double(),
+  chromEnd = col_double(),
+  name = col_character(),
+  EffectSize = col_double(),
+  strandPerturbationTarget = col_character(),
+  PerturbationTargetID = col_character(),
+  chrTSS = col_character(),
+  startTSS = col_double(),
+  endTSS = col_double(),
+  strandGene = col_character(),
+  EffectSize95ConfidenceIntervalLow = col_double(),
+  EffectSize95ConfidenceIntervalHigh = col_double(),
+  measuredGeneSymbol = col_character(),
+  measuredEnsemblID = col_character(),
+  guideSpacerSeq = col_logical(),
+  guideSeq = col_character(),
+  Significant = col_logical(),
+  pValue = col_double(),
+  pValueAdjusted = col_double(),
+  PowerAtEffectSize10 = col_double(),
+  PowerAtEffectSize25 = col_double(),
+  PowerAtEffectSize50 = col_double(),
+  ValidConnection = col_character(),
+  CellType = col_character(),
+  Reference = col_character(),
+  distToTSS = col_double(),
+  avgGeneExpr = col_double(),
+  nPertCells = col_double()
+)
+
+# load results
+results <- read_tsv(snakemake@input[[1]], col_types = results_cols, progress = FALSE)
+
+# extract valid enhancer-gene interactions within 1 Mb from TSS
+cis_results <- results %>% 
+  filter(ValidConnection == "TRUE", abs(distToTSS) > 1000, abs(distToTSS) <= 1e6)
+```
+
+```{r, fig.height=4, fig.width=8}
+# extract power and reformat
+power <- cis_results %>% 
+  select(name, distToTSS, avgGeneExpr, nPertCells,
+         Significant, PowerAtEffectSize10, PowerAtEffectSize25, PowerAtEffectSize50) %>%
+  pivot_longer(cols = c(PowerAtEffectSize10, PowerAtEffectSize25, PowerAtEffectSize50),
+              names_to = "effectSize", values_to = "power") %>% 
+  mutate(effectSize = sub("PowerAtEffectSize(.+)", "\\1%", effectSize))
+
+# set power to 0 for any pairs with power = NA
+power <- replace_na(power, replace = list(power = 0))
+
+# add power rank and percent of pairs
+power <- power %>% 
+  group_by(effectSize) %>% 
+  arrange(desc(power)) %>% 
+  mutate(power_rank = seq_len(n()),
+         power_pct = power_rank / n())
+
+# plot power distribution
+p1 <- ggplot(power, aes(x = power_pct, y = power, color = effectSize)) +
+  geom_hline(yintercept = 0.8, lty = "dashed") +
+  geom_line(lwd = 1) +
+  labs(title = "Power pairs <= 1Mb", y = "Power", x = "Tested enh-gene pairs",
+       color = "Effect size") +
+  scale_x_continuous(labels = scales::percent) +
+  theme_bw() +
+  theme(text = element_text(size = 12))
+
+# filter for pairs with >= 0.8 power
+power_80 <- filter(power, power >= 0.8)
+
+# plot number of pairs at 80% power
+p2 <- ggplot(power_80, aes(x = effectSize, fill = effectSize)) +
+  geom_bar() +
+  scale_y_continuous(limits = c(0, nrow(cis_results))) +
+  labs(x = "Effect size", y = "Tested enh-gene pairs", title = "80% power") +
+  theme_bw() +
+  theme(legend.position = "none", text = element_text(size = 12))
+
+# print plots as one figure
+plot_grid(p2, p1, ncol = 2, rel_widths = c(0.33, 0.66))
+```
+
+***
+
+### Power vs expression and perturbed cells
+Power is plotted as a function of gene expression levels and number of perturbed cells per enhancer.
+
+```{r, fig.width=6, fig.height=3.5}
+# add cell number and gene expression quantiles for each etp 
+power <- power %>% 
+  mutate(cells_quant = cut(nPertCells, breaks = quantile(nPertCells), include.lowest = TRUE)) %>% 
+  mutate(expr_quant = cut(avgGeneExpr, breaks = quantile(avgGeneExpr, probs = seq(0, 1, 0.1)),
+                          include.lowest = TRUE))
+
+# compute average transcripts per expression quantile
+avg_expr_quants <- power %>% 
+  group_by(expr_quant) %>% 
+  summarize(mean_expr = mean(avgGeneExpr))
+
+# compute average power and expression per quantile
+binned_power <- power %>%
+  group_by(effectSize, cells_quant, expr_quant) %>% 
+  summarize(mean_power = mean(power), .groups = "drop") %>% 
+  left_join(avg_expr_quants, by = "expr_quant")
+
+# plot binned power
+ggplot(binned_power,
+       aes(x = mean_expr, y = mean_power, color = effectSize, linetype = cells_quant)) +
+  geom_hline(yintercept = 0.8, lty = "dashed") +
+  geom_line() +
+  geom_point() +
+  labs(x = "Avgerage expression (decentiles)", y = "Power", linetype = "Pert. cells",
+       color = "Effect size") +
+  scale_x_log10() +
+  theme_bw() +
+  theme(text = element_text(size = 12))
+```

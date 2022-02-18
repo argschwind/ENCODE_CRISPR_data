@@ -20,11 +20,11 @@ rule download_gasperini_grnas:
   shell:
     "wget -O {output} {params.url}"
     
-# download annotations used by Gasperini et al.
+# download gencode annotations
 rule download_gencode_annotations:
-  output: "resources/gencode.v26lift37.annotation.gtf.gz"
+  output: "resources/{annot}.annotation.gtf.gz"
   params:
-    url = config["download_urls"]["gencode_v26lift37"]
+    url = lambda wildcards: config["download_urls"][wildcards.annot]
   conda: "../envs/r_process_crispr_data.yml"
   shell:
     "wget -O {output} {params.url}"
@@ -93,11 +93,11 @@ rule create_candidate_cres:
     "bedtools merge -i stdin -c 11 -o max | "
     "sort -nr -k 4 | awk '(NR <= 150000)' | "
     "bedtools intersect -b stdin -a {input.peaks} -wa | "
-    """awk 'BEGIN{{OFS="\\t"}} {{print $1, $2 + $10, $2 + $10}}' | """ 
+    """awk 'BEGIN {{OFS="\\t"}} {{print $1, $2 + $10, $2 + $10}}' | """ 
     "bedtools slop -i stdin -b {params.peak_extend} -g {input.chrs} | "
     "bedtools sort -i stdin -faidx {input.chrs} | "
     "bedtools merge -i stdin | "
-    """awk 'BEGIN{{OFS="\\t"}} {{print $1, $2, $3, $1":"$2"-"$3, "0", "."}}' > {output}"""
+    """awk 'BEGIN {{OFS="\\t"}} {{print $1, $2, $3, $1":"$2"-"$3, "0", "."}}' > {output}"""
 
    
 # create Gasperini differential expression analysis input data -------------------------------------
