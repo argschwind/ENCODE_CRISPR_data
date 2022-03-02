@@ -219,6 +219,9 @@ test_differential_expression <- function(sce, pert_level, max_dist = NULL,
   # add average observed gene expression and number of cells per perturbation
   output <- annotate_cells_and_expr(output, sce = sce, pert_level = pert_level)
   
+  # add perturbation level used for DE tests
+  output$pert_level <- pert_level
+  
   # annotate output with enhancer and gene coordinates and compute distance
   output <- annotate_dist_to_gene(output, sce = sce, pert_level = pert_level)
   

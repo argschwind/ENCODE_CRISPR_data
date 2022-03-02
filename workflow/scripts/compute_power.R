@@ -1,7 +1,8 @@
 ## load power simulation output to compute power for one sample and effect size
 
 # required packages
-library(tidyverse)
+library(dplyr)
+library(readr)
 
 # column types of power simulation files
 sim_col_types <- cols(
@@ -17,7 +18,7 @@ sim_col_types <- cols(
 )
 
 # load power simulation output files
-power_sim <- lapply(snakemake@input, FUN = read_csv, col_types = sim_col_types, progress = FALSE)
+power_sim <- lapply(snakemake@input, FUN = read_tsv, col_types = sim_col_types, progress = FALSE)
 
 # combine into one data frame
 power_sim <- bind_rows(power_sim)
@@ -35,4 +36,4 @@ power <- power_sim %>%
 power$effect_size <- as.numeric(snakemake@wildcards$effect)
 
 # save power calculations to output file
-write_csv(power, file = snakemake@output[[1]])
+write_tsv(power, file = snakemake@output[[1]])

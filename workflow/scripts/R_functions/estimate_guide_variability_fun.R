@@ -9,7 +9,7 @@ library(cowplot)
 # estimate guide variability using a linear model and fit normal distribution to output
 estimate_guide_variability <- function(per_target, per_guide, guide_targets, cells_per_guide = 25,
                                        effect_size = c("logFC", "log2FC", "pctChange"),
-                                       pct_change_range = c(-Inf, Inf),
+                                       pct_change_range = c(-1, 0),
                                        return_plots = FALSE) {
   
   # only retain per-guide results with a specified minimum of cells
@@ -131,6 +131,5 @@ plot_guide_var_distr <- function(guide_var, distr_param) {
     stat_function(fun = dnorm, args = list(mean = distr_param[["mean"]], sd = distr_param[["sd"]]),
                   color = "firebrick3", lwd = 1) +
     theme_bw() +
-    theme(text = element_text(size = 15)) +
     theme(text = element_text(size = 10))
 }

@@ -16,6 +16,7 @@ de_results_cols <- cols(
   pval_adj = col_double(),
   cells = col_double(),
   avg_expr = col_double(),
+  pert_level = col_character(),
   chr = col_character(),
   pert_start = col_double(),
   pert_end = col_double(),
@@ -25,8 +26,8 @@ de_results_cols <- cols(
 )
 
 # load differential expression results
-per_target <- read_csv(snakemake@input$per_target, col_types = de_results_cols)
-per_guide  <- read_csv(snakemake@input$per_guide,  col_types = de_results_cols)
+per_target <- read_tsv(snakemake@input$per_target, col_types = de_results_cols)
+per_guide  <- read_tsv(snakemake@input$per_guide,  col_types = de_results_cols)
 
 # column types in guide targets
 guide_targets_cols <- cols(
@@ -50,9 +51,8 @@ guide_targets <- read_tsv(snakemake@input$guide_targets, col_types = guide_targe
 colnames(per_target)[colnames(per_target) == snakemake@params$effect_size_col] <- "effect_size"
 colnames(per_guide)[colnames(per_guide)  == snakemake@params$effect_size_col] <- "effect_size"
 
-# extract significant pairs from on per-target results and filter out pairs that increase expression
+# extract significant pairs from on per-target results
 sig_per_target <- filter(per_target, pval_adj < snakemake@params$fdr_sig)
-sig_per_target <- filter(sig_per_target, effect_size < 0)
 
 # estimate guide variability from significant pairs
 guide_var <- estimate_guide_variability(sig_per_target,
@@ -60,12 +60,12 @@ guide_var <- estimate_guide_variability(sig_per_target,
                                         guide_targets = guide_targets,
                                         cells_per_guide = snakemake@params$cells_per_guide,
                                         effect_size = snakemake@params$effect_size_col,
-                                        pct_change_range = c(-1, 0),
+                                        pct_change_range = snakemake@params$pct_change_range,
                                         return_plots = TRUE)
 
 # save guide variability and distribution fit to output files
-write_csv(guide_var$guide_variability, file = snakemake@output$guide_var)
-write_csv(guide_var$distribution, file = snakemake@output$distr_fit)
+write_tsv(guide_var$guide_variability, file = snakemake@output$guide_var)
+write_tsv(guide_var$distribution, file = snakemake@output$distr_fit)
 
 # arrange plots into one panel and save to file
 plots <- plot_grid(plotlist = guide_var$plots, rel_widths = c(4, 3))

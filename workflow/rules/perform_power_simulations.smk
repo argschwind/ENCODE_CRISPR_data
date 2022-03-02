@@ -3,17 +3,18 @@
 # extimate guide-guide variability from differential expression results
 rule estimate_guide_variability:
   input:
-    per_target = "results/{sample}/diff_expr/output_{method}_perCRE.csv.gz",
-    per_guide = "results/{sample}/diff_expr/output_{method}_perGRNA.csv.gz",
+    per_target = "results/{sample}/diff_expr/output_{method}_perCRE.tsv.gz",
+    per_guide = "results/{sample}/diff_expr/output_{method}_perGRNA.tsv.gz",
     guide_targets = "resources/{sample}/guide_targets.tsv"
   output: 
-    guide_var = "results/guide_var/{sample}/guide_variability_{method}.csv",
-    distr_fit = "results/guide_var/{sample}/guide_variability_distribution_{method}.csv",
-    plots = "results/guide_var/{sample}/guide_variability_{method}.pdf"
+    guide_var = "results/{sample}/guide_var/guide_variability_{method}.tsv",
+    distr_fit = "results/{sample}/guide_var/guide_variability_distribution_{method}.tsv",
+    plots = "results/{sample}/guide_var/guide_variability_{method}.pdf"
   params:
     effect_size_col = "logFC",
     fdr_sig = 0.05,
-    cells_per_guide = 25
+    cells_per_guide = 25,
+    pct_change_range = [-0.5, -0.1]
   conda: "../envs/r_process_crispr_data.yml"
   script:
     "../scripts/estimate_guide_variability.R"
@@ -39,7 +40,7 @@ rule fit_negbinom_distr:
 rule perform_power_simulations:
   input: "resources/{sample}/perturb_sce_disp.{chr}.rds"
   output:
-    temp("results/{sample}/power_sim/{chr}/{chr}_rep{rep}_output_{effect}_{sd}gStd_{method}_{strategy}.csv.gz")
+    temp("results/{sample}/power_sim/{chr}/{chr}_rep{rep}_output_{effect}_{sd}gStd_{method}_{strategy}.tsv.gz")
   params:
     min_cells = lambda wildcards: config["diff_expr"]["min_cells"][wildcards.strategy],
     max_dist = config["diff_expr"]["max_dist"],
@@ -60,11 +61,11 @@ rule perform_power_simulations:
 # compute power
 rule compute_power:
   input:
-    expand("results/{{sample}}/power_sim/{chr}/{chr}_rep{rep}_output_{{effect}}_{{sd}}gStd_{{method}}_{{strategy}}.csv.gz",
+    expand("results/{{sample}}/power_sim/{chr}/{chr}_rep{rep}_output_{{effect}}_{{sd}}gStd_{{method}}_{{strategy}}.tsv.gz",
       chr = ["chr" + str(i)  for i in [*range(1, 23), "X"]],
       rep = range(1, config["power_simulations"]["rep"] + 1))
   output:
-    "results/{sample}/power_sim/power_{effect}_{sd}gStd_{method}_{strategy}.csv.gz"
+    "results/{sample}/power_sim/power_{effect}_{sd}gStd_{method}_{strategy}.tsv.gz"
   params:
     fdr = config["diff_expr"]["padj_threshold"]
   conda: "../envs/r_process_crispr_data.yml"

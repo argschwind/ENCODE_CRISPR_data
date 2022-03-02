@@ -17,7 +17,7 @@ rule extract_chromosome:
 rule perform_de_tests:
   input: "resources/{sample}/perturb_sce.{chr}.rds"
   output:
-    temp("results/{sample}/diff_expr/{chr}_output_{method}_{strategy}.csv.gz")
+    temp("results/{sample}/diff_expr/{chr}_output_{method}_{strategy}.tsv.gz")
   params:
     umis_per_cell = config["diff_expr"]["umis_per_cell"]["Gasperini"],
     min_cells = lambda wildcards: config["diff_expr"]["min_cells"][wildcards.strategy],
@@ -31,18 +31,18 @@ rule perform_de_tests:
   threads: config["diff_expr"]["threads"]
   conda: "../envs/r_process_crispr_data.yml"
   resources:
-    mem = "64G",
-    time = "3:00:00"
+    mem = "24G",
+    time = "6:00:00"
   script:
     "../scripts/differential_expression.R"
     
 # run DE tests for all chromosomes and combine into one file
 rule combine_de_results:
   input:
-    expand("results/{{sample}}/diff_expr/{chr}_output_{{method}}_{{strategy}}.csv.gz",
+    expand("results/{{sample}}/diff_expr/{chr}_output_{{method}}_{{strategy}}.tsv.gz",
       chr = ["chr" + str(i) for i in [*range(1, 23), "X"]])
   output:
-    "results/{sample}/diff_expr/output_{method}_{strategy}.csv.gz"
+    "results/{sample}/diff_expr/output_{method}_{strategy}.tsv.gz"
   params:
     padj_method = config["diff_expr"]["padj_method"]
   conda: "../envs/r_process_crispr_data.yml"

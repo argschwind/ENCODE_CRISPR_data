@@ -15,6 +15,7 @@ sink(log, type = "message")
 # required packages and functions
 suppressPackageStartupMessages({
   library(dplyr)
+  library(readr)
   library(BiocParallel)
   library(SingleCellExperiment)
   source(file.path(snakemake@scriptdir, "R_functions/differential_expression_fun.R"))
@@ -90,9 +91,7 @@ output <- left_join(output, disp_outlier, by = "gene")
 
 # save simulation output
 message("Saving output to file.")
-outfile <- gzfile(snakemake@output[[1]], open = "w")
-write.csv(output, file = outfile, row.names = FALSE)
-close(outfile)
+write_tsv(output, file = snakemake@output[[1]])
 
 # close and compress log file
 sink()

@@ -3,8 +3,11 @@
 download_urls:
   gasperini_cds: "https://ftp.ncbi.nlm.nih.gov/geo/series/GSE120nnn/GSE120861/suppl/GSE120861_at_scale_screen.cds.rds.gz"
   gencode.v26lift37: "http://ftp.ebi.ac.uk/pub/databases/gencode/Gencode_human/release_26/GRCh37_mapping/gencode.v26lift37.annotation.gtf.gz"
+  gencode.v26: "http://ftp.ebi.ac.uk/pub/databases/gencode/Gencode_human/release_26/gencode.v26.annotation.gtf.gz"
   ENCFF030DCL: "https://www.encodeproject.org/files/ENCFF030DCL/@@download/ENCFF030DCL.bam"
+  liftover_chain: "https://hgdownload.cse.ucsc.edu/goldenPath/hg19/liftOver/hg19ToHg38.over.chain.gz"
 
+# parameters for differential expression tests to map perturbations to target genes
 diff_expr:
   umis_per_cell:
     Gasperini:  [1, 75000]
@@ -18,18 +21,24 @@ diff_expr:
   padj_threshold: 0.05
   threads: 1
 
+# parameters for power simulations to estimate statistical power for every perturbation-gene pair
 power_simulations:
-  effect_sizes: [0.1, 0.25, 0.5]
+  effect_sizes: [0.1, 0.15, 0.2, 0.25, 0.5]
   remove_genes: NULL
   size_factors: "poscounts"
   fit_type: "parametric"
   norm: "sim_nonpert"
   rep: 20
   threads: 1
+  
+# parameters to create output for EP benchmarking files
+ep_benchmarking:
+  dist_to_TSS: [1000, 1e6]
 
 # additional metadata per experiment
 metadata:
   Gasperini2019:
     cell_type: "K562"
     reference: "Gasperini et al., 2019"
-    
+    gene_ids: "ensembl"
+    tss_ctrl_tag: "PosCtrl"

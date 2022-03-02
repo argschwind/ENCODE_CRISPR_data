@@ -4,31 +4,37 @@ configfile: "config/config.yml"
 
 # workflow rules
 include: "rules/create_gasperini_input.smk"
-include: "rules/perform_diff_expr.smk"
+include: "rules/perform_diff_expr_tests.smk"
 include: "rules/perform_power_simulations.smk"
-include: "rules/create_output.smk"
+include: "rules/create_input_and_output.smk"
 include: "rules/additional_analyses.smk"
+include: "rules/create_encode_output.smk"
 
-# perform all analyses
+# perform differential expression and power analyses to create main output files
 rule all:
   input:
-    expand("results/{sample}/power_analysis_{sd}gStd_MAST_perCRE.html",
-      sample = "Gasperini2019", sd = "0.1")
+    output = expand("results/{sample}/output_{sd}gStd_{method}_{strategy}.tsv.gz",
+      sample = "Gasperini2019", sd = 0.13, method = "MAST", strategy = "perCRE"),
+    power_analysis = expand("results/{sample}/power_analysis_{sd}gStd_{method}_{strategy}.html",
+      sample = "Gasperini2019", sd = 0.13, method = "MAST", strategy = "perCRE")
+
+# create all output files for ENCODE
+rule encode:
+  input:
+    encode_files = expand("results/ENCODE/ENCODE_{sample}_{sd}gStd_MAST_perCRE.tsv.gz",
+      sample = "Gasperini2019", sd = 0.13),
+    eg_benchmarking_files = expand("results/ENCODE/EPCrisprBenchmark_Gasperini2019_{sd}gStd_{pwr}pwrAt{es}effect_{genome}.tsv.gz",
+      sd = 0.13, pwr = 0.8, es = 15, genome = ["hg19", "GRCh38"])
 
 # perform all DE tests
 rule all_de_tests:
   input:
-    expand("results/Gasperini2019/diff_expr/output_MAST_{pert_level}.csv.gz",
-           pert_level = ["perCRE", "perGRNA"])
-
-# generate all input for power simulations
-rule pwr_input:
-  input:
-    expand("resources/Gasperini2019/perturb_sce_disp.{chr}.rds",
-    chr = ["chr" + str(i)  for i in [*range(1, 23), "X"]])
+    expand("results/{sample}/diff_expr/output_MAST_{pert_level}.tsv.gz",
+      sample = "Gasperini2019", pert_level = ["perCRE", "perGRNA"])
 
 # perform all power simulations
 rule all_pwr_sims:
   input:
-    expand("results/Gasperini2019/power_sim/power_{effect_size}_0.1gStd_MAST_perCRE.csv.gz",
-      effect_size = config["power_simulations"]["effect_sizes"])
+    expand("results/{sample}/power_sim/power_{effect_size}_{sd}gStd_MAST_perCRE.tsv.gz",
+      sample = "Gasperini2019", effect_size = config["power_simulations"]["effect_sizes"],
+      sd = 0.13)

@@ -12,6 +12,7 @@ sink(log, type = "message")
 # required packages and functions
 suppressPackageStartupMessages({
   library(dplyr)
+  library(readr)
   library(BiocParallel)
   library(SingleCellExperiment)
   source(file.path(snakemake@scriptdir, "R_functions/differential_expression_fun.R")) 
@@ -67,7 +68,8 @@ output <- output %>%
   dplyr::rename(chr = pert_chr, gene_tss = gene_start, dist_to_tss = distance)
 
 # save DE output to file
-write.csv(output, file = snakemake@output[[1]], row.names = FALSE)
+message("Saving output to file.")
+write_tsv(output, file = snakemake@output[[1]])
 
 # close log file connection
 sink()

@@ -15,6 +15,7 @@ de_cols <- cols(
   pval_adj = col_double(),
   cells = col_double(),
   avg_expr = col_double(),
+  pert_level = col_character(),
   chr = col_character(),
   pert_start = col_integer(),
   pert_end = col_integer(),
@@ -24,7 +25,7 @@ de_cols <- cols(
 )
 
 # load DE results for each chromosome
-de_results <- lapply(unlist(snakemake@input), FUN = read_csv, col_types = de_cols)
+de_results <- lapply(unlist(snakemake@input), FUN = read_tsv, col_types = de_cols)
 
 # combine into one table and re-calculate multiple testing correction
 output <- de_results %>% 
@@ -32,4 +33,4 @@ output <- de_results %>%
   mutate(pval_adj = p.adjust(pvalue, method = snakemake@params$padj_method))
 
 # save to output file
-write_csv(output, file = snakemake@output[[1]])
+write_tsv(output, file = snakemake@output[[1]])
