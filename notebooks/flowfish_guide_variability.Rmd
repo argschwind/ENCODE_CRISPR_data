@@ -1,0 +1,140 @@
+---
+title: "FlowFISH guide variability"
+author: "Andreas Gschwind"
+date: "`r format(Sys.time(), '%B %d, %Y')`"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = FALSE)
+```
+
+## Goal
+Investigate guide to guide variability in FlowFISH data and see if this could be used for a better
+estimate of guide variability for power simulations.
+
+```{r requiredPackages, warning=FALSE, message=FALSE}
+library(tidyverse)
+library(here)
+library(cowplot)
+library(MASS)
+```
+
+***
+
+## Used data
+Fulco et al FlowFISH data provided by Ben is used for this analysis.
+```{r}
+# directory containing data
+data_dir <- "/scratch/users/bgrd/share/180928_AllScreens_75TSS"
+
+# get directories containing data without replicates for each gene
+gene_dirs <- grep(list.dirs(data_dir, recursive = FALSE), pattern = "\\.|-", invert = TRUE,
+                  value = TRUE)
+
+# get all required guide level and element level files within those directories
+element_files <- list.files(path = gene_dirs, pattern = ".FullEnhancerScore.txt", full.names = TRUE)
+guide_files <- list.files(path = gene_dirs, pattern = ".collapse.bed$", full.names = TRUE)
+
+# set names of files to gene
+names(element_files) <- basename(gene_dirs)
+names(guide_files) <- basename(gene_dirs)
+
+# load all input files
+per_element <- lapply(element_files, FUN = read_tsv, show_col_types = FALSE)
+per_guide <- lapply(guide_files, FUN = read_tsv, show_col_types = FALSE,
+                    col_names = c("chr", "start", "end", "guide_effect"))
+
+# combine into 2 data frames
+per_element <- bind_rows(per_element, .id = "gene")
+per_guide <-  bind_rows(per_guide, .id = "gene")
+```
+
+```{r, fig.width=5, fig.height=4}
+# add per guide effects to per element data
+data <- left_join(per_element, per_guide, by = c("gene", "chr", "start", "end"))
+
+# unnest guide effects and transform to long format
+data <- data %>% 
+  mutate(guide_effect = strsplit(guide_effect, split = ",")) %>% 
+  unnest(cols = guide_effect) %>% 
+  mutate(guide_effect = as.numeric(guide_effect))
+
+# convert effect sizes to percent changes like in other analyses
+data <- data %>% 
+  mutate(enh_pct_change = -1 * (1 - mean),
+         guide_pct_change = -1 * (1 - guide_effect))
+
+# add unique identified for each tested enhancer - gene pair
+data <- unite(data, col = "pair_uid", gene, chr, start, end, remove = FALSE)
+
+# count and plot the number of guides per enhancer - gene pair
+guides_per_pair <- count(data, gene, chr, start, end, name = "guides")
+ggplot(guides_per_pair, aes(guides)) +
+  geom_histogram(binwidth = 1) +
+  labs(title = "Number of guides per tested ehancer - gene pair") +
+  theme_bw()
+```
+
+```{r, fig.width=5, fig.height=4}
+# calculate enhancer size per pair
+guides_per_pair <- mutate(guides_per_pair, element_width = end - start)
+
+# plot element width vs number of guides
+ggplot(guides_per_pair, aes(x = element_width, y = guides)) +
+  geom_point(alpha = 0.25) +
+  labs(x = "element width (bp)", title = "Number of guides vs. targeted element size") +
+  theme_bw()
+```
+
+## Enhancer effect size vs guide effect sizes
+Only significant enhancers with at least 50 guides are selected and guide-level effects are plotted
+against enhancer-level effects.
+```{r}
+# add the number of guides per pair to data
+data <- add_count(data, pair_uid, name = "guides")
+
+# get significant pairs with at least 50 guides targeting the enhancers
+sig_pairs_50_guides <- filter(data, Significant == TRUE, guides >= 50, enh_pct_change < 0)
+
+# plot enhancer vs guide effects
+p1 <- ggplot(sig_pairs_50_guides, aes(x = enh_pct_change, y = guide_pct_change)) +
+  geom_point(alpha = 0.25) +
+  geom_smooth(method = "lm", se = FALSE, formula = y ~ x) +
+  labs(x = "per-target effect size (pct change)", y = "per-guide effect size (pct change)",
+       title = "Per-target vs per-guide effect size") +
+  theme_bw() +
+  theme(text = element_text(size = 10))
+```
+
+```{r}
+# fit linear model, extract residuals and add estimated guide variability to data
+model <- lm(guide_pct_change ~ enh_pct_change, data = sig_pairs_50_guides)
+sig_pairs_50_guides$guide_var <- residuals(model)
+
+# fit normal distribution and extract fitted parameters
+distr_fit <- fitdistr(sig_pairs_50_guides$guide_var, densfun = "normal")
+distr_param <- distr_fit$estimate 
+
+# plot real guide variability distribution and overlay fitted normal distribution
+p2 <- ggplot(sig_pairs_50_guides, aes(guide_var)) +
+  geom_histogram(aes(y =..density..), bins = 100) +
+  labs(title = "Guide variability distribution",
+      x = "Guide effect size normalized for target effect") +
+  stat_function(fun = dnorm, args = list(mean = distr_param[["mean"]], sd = distr_param[["sd"]]),
+               color = "firebrick3", lwd = 1) +
+  scale_x_continuous(breaks = seq(-2, 2, by = 0.25)) +
+  theme_bw() +
+  theme(text = element_text(size = 10))
+```
+
+```{r, fig.width=8, fig.height=4}
+plot_grid(p1, p2, rel_widths = c(4, 3))
+```
+
+Fitting a normal distribution on the inferred guide variabilities results in a standard distribuion
+of `r round(distr_param[["sd"]], digits = 3)`.
+
+## Open questions
+
+* How does guide design affect guide variability? Picking 2-4 best guides vs. all guides.
