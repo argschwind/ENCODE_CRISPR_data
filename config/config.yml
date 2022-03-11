@@ -4,8 +4,10 @@ download_urls:
   gasperini_cds: "https://ftp.ncbi.nlm.nih.gov/geo/series/GSE120nnn/GSE120861/suppl/GSE120861_at_scale_screen.cds.rds.gz"
   gencode.v26lift37: "http://ftp.ebi.ac.uk/pub/databases/gencode/Gencode_human/release_26/GRCh37_mapping/gencode.v26lift37.annotation.gtf.gz"
   gencode.v26: "http://ftp.ebi.ac.uk/pub/databases/gencode/Gencode_human/release_26/gencode.v26.annotation.gtf.gz"
+  gencode.v29: "http://ftp.ebi.ac.uk/pub/databases/gencode/Gencode_human/release_29/gencode.v29.annotation.gtf.gz"
   ENCFF030DCL: "https://www.encodeproject.org/files/ENCFF030DCL/@@download/ENCFF030DCL.bam"
   liftover_chain: "https://hgdownload.cse.ucsc.edu/goldenPath/hg19/liftOver/hg19ToHg38.over.chain.gz"
+  FlowFISH_K562: "https://raw.githubusercontent.com/EngreitzLab/ABC-GWAS-Paper/main/comparePredictorsToCRISPRData/comparisonRuns/K562-only/experimentalData/experimentalData.K562-only.txt"
 
 # parameters for differential expression tests to map perturbations to target genes
 diff_expr:

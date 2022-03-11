@@ -56,6 +56,14 @@ dat <- dat %>%
   select(-c(chrom, chromStart, chromEnd)) %>% 
   left_join(select(enh_hg38, -c(score, strand)), by = c("enh_uid" = "name"))
 
+# remove any pairs involving enhancers that failed to lift over
+unlifted_filter <- is.na(dat$chrom)
+if (any(unlifted_filter)) {
+  warning("Removing ", sum(unlifted_filter), " E-G pairs for which enhancer liftover failed!",
+          call. = FALSE)
+  dat <- dat[!unlifted_filter, ]
+}
+
 # Liftover TSS coordinates -------------------------------------------------------------------------
 
 # only retain annotations on genes in data
@@ -80,11 +88,11 @@ tss_hg38 <- data.frame(chrTSS = as.character(seqnames(tss_hg38)),
                        stringsAsFactors = FALSE)
 
 # replace hg19 TSS coordinates in data with hg38 coordinates and rearrange columns for output
-dat <- dat %>% 
+output <- dat %>% 
   select(-c(startTSS, endTSS)) %>% 
   left_join(tss_hg38, by = c("measuredGeneSymbol", "chrTSS")) %>% 
   select(all_of(dat_colnames)) %>% 
   arrange(chrom, chromStart, chromEnd, measuredGeneSymbol)
   
 # write output to file
-write_tsv(dat, file = snakemake@output[[1]])
+write_tsv(output, file = snakemake@output[[1]])

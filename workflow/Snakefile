@@ -9,6 +9,7 @@ include: "rules/perform_power_simulations.smk"
 include: "rules/create_input_and_output.smk"
 include: "rules/additional_analyses.smk"
 include: "rules/create_encode_output.smk"
+include: "rules/format_flowfish_data.smk"
 
 # perform differential expression and power analyses to create main output files
 rule all:
@@ -24,7 +25,9 @@ rule encode:
     encode_files = expand("results/ENCODE/ENCODE_{sample}_{sd}gStd_MAST_perCRE.tsv.gz",
       sample = "Gasperini2019", sd = 0.13),
     eg_benchmarking_files = expand("results/ENCODE/EPCrisprBenchmark_Gasperini2019_{sd}gStd_{pwr}pwrAt{es}effect_{genome}.tsv.gz",
-      sd = 0.13, pwr = 0.8, es = 15, genome = ["hg19", "GRCh38"])
+      sd = 0.13, pwr = 0.8, es = 15, genome = ["hg19", "GRCh38"]),
+    flowfish = expand("results/ENCODE/EPCrisprBenchmark_FlowFISH_K562_{genome}.tsv.gz",
+      genome = ["hg19", "GRCh38"])
 
 # perform all DE tests
 rule all_de_tests:

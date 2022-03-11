@@ -54,12 +54,12 @@ rule download_chain_file:
 # lift enhancer coordinates from hg19 to hg38 using UCSC's liftOver software    
 rule liftover_enhancers:
   input:
-    results = "results/ENCODE/EPCrisprBenchmark_Gasperini2019_{sd}gStd_unfiltered_hg19.tsv.gz",
+    results = "results/ENCODE/EPCrisprBenchmark_{sample}_{sd}gStd_unfiltered_hg19.tsv.gz",
     chain = "results/ENCODE/liftover/hg19ToHg38.over.chain.gz"
   output:
-    hg19 = "results/ENCODE/liftover/Gasperini2019_{sd}gStd_unfiltered/enh_hg19.bed",
-    hg38 = "results/ENCODE/liftover/Gasperini2019_{sd}gStd_unfiltered/enh_hg38.bed",
-    unlifted = "results/ENCODE/liftover/Gasperini2019_{sd}gStd_unfiltered/enh_unlifted.bed"
+    hg19 = "results/ENCODE/liftover/{sample}_{sd}gStd_unfiltered/enh_hg19.bed",
+    hg38 = "results/ENCODE/liftover/{sample}_{sd}gStd_unfiltered/enh_hg38.bed",
+    unlifted = "results/ENCODE/liftover/{sample}_{sd}gStd_unfiltered/enh_unlifted.bed"
   conda: "../envs/r_process_crispr_data.yml"
   shell:
     "zcat {input.results} | "
@@ -67,14 +67,13 @@ rule liftover_enhancers:
     "sort | uniq > {output.hg19} ; "
     "liftOver {output.hg19} {input.chain} {output.hg38} {output.unlifted}"
 
-# liftover Gasperini2019 data from hg19 to hg38
+# liftover EP benchmarking dataset from hg19 to hg38
 rule liftover_crispr_dataset:
   input:
-    results = "results/ENCODE/EPCrisprBenchmark_Gasperini2019_{sd}gStd_unfiltered_hg19.tsv.gz",
-    enh_hg38 = "results/ENCODE/liftover/Gasperini2019_{sd}gStd_unfiltered/enh_hg38.bed",
+    results = "results/ENCODE/EPCrisprBenchmark_{sample}_{sd}gStd_unfiltered_hg19.tsv.gz",
+    enh_hg38 = "results/ENCODE/liftover/{sample}_{sd}gStd_unfiltered/enh_hg38.bed",
     annot_hg38 = "resources/gencode.v26.annotation.gtf.gz"
-  output: "results/ENCODE/EPCrisprBenchmark_Gasperini2019_{sd}gStd_unfiltered_GRCh38.tsv.gz"
-  output: "results/ENCODE/EPCrisprBenchmark_Gasperini2019_{sd}gStd_{pwr}pwrAt{es}effect_GRCh38.tsv.gz",
+  output: "results/ENCODE/EPCrisprBenchmark_{sample}_{sd}gStd_unfiltered_GRCh38.tsv.gz"
   conda: "../envs/r_process_crispr_data.yml"
   script:
     "../scripts/encode_datasets/liftover_crispr_dataset.R"
