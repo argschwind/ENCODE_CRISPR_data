@@ -1,4 +1,6 @@
-## functions to perform differential gene expression analysis for enhancer TAP-seq
+## Functions to perform differential gene expression analysis for enhancer TAP-seq
+
+library(dplyr)
 
 #' Censored mean normalization
 #' 
@@ -32,6 +34,7 @@ normalize_cens_mean <- function(sce, percentile = 0.9, assay = "counts") {
   # add normalized data and normalization factors to sce object
   assay(sce, "normcounts") <- normcounts
   colData(sce)[, "norm_factors"] <- norm_factors
+  
   return(sce)
   
 }
@@ -78,10 +81,11 @@ normalize_deseq <- function(sce, expr_quantile = c(0, 0.9), norm_genes = NULL,
   
   # normalize data of each cell based on computed size factors
   normcounts <- t(t(counts) / size_factors)
-
+  
   # add normalized data and normalization factors to sce object
   assay(sce, "normcounts") <- normcounts
   colData(sce)[, "norm_factors"] <- size_factors
+  
   return(sce)
   
 }
@@ -208,7 +212,7 @@ test_differential_expression <- function(sce, pert_level, max_dist = NULL,
                      n_ctrl = n_ctrl)
   
   # convert output into one data.frame
-  output <- dplyr::bind_rows(output, .id = "perturbation")
+  output <- bind_rows(output, .id = "perturbation")
   
   # correct for multiple testing for all performed tests
   if (method != "LFC") {
@@ -245,8 +249,13 @@ test_differential_expression <- function(sce, pert_level, max_dist = NULL,
 #'   (perturbations) in colData.
 #' @param formula Formula to use for differential expression tests. Default: '~ pert', which tests
 #'   for an effect of the perturbation status stored in colData as 'pert'.
+#' @param pvalue Which test should be used to compute the p-value (default = "hurdle")?
 #' @param parallel Should multiple cores be used for fitting (default = FALSE)?
-de_MAST <- function(pert_object, formula = ~pert, parallel = FALSE) {
+de_MAST <- function(pert_object, formula = ~pert, pvalue = c("hurdle", "cont", "disc"),
+                    parallel = FALSE) {
+  
+  # parse input arguments
+  pvalue <- match.arg(pvalue)
   
   # add some row- and colData expected by MAST (not used in DE tests)
   rowData(pert_object) <- cbind(rowData(pert_object), primerid = rownames(pert_object))
@@ -257,20 +266,39 @@ de_MAST <- function(pert_object, formula = ~pert, parallel = FALSE) {
   
   # fit hurdle model
   zlm_fit <- zlm(as.formula(formula), sca = sca, parallel = parallel)
-
+  
+  # calculate log fold changes and confidence intervals using summary function. this will fail if
+  # only one gene was tested... in that case return NA
+  lfc <- tryCatch(
+    withCallingHandlers({
+      summary_zlm_fit <- summary(zlm_fit, parallel = parallel)
+      summary_dt <- summary_zlm_fit$datatable
+      lfc <- summary_dt[contrast == "pert1" & component == "logFC", .(primerid, coef, ci.hi, ci.lo)]
+      as.data.frame(lfc)
+    }), warning = function(w) {
+      message("For perturbation ", pert, ": ", w)
+      invokeRestart("muffleWarning")
+    }, error = function(e) {
+      message("Can't compute logFC: ", e)
+      genes <- rownames(pert_object)
+      data.frame(primerid = genes, coef = NA_real_, ci.hi = NA_real_, ci.lo = NA_real_)
+    })
+  
   # perform likelihood ratio test for the perturbation coefficient
-  summary_zlm_fit <- summary(zlm_fit, doLRT = "pert1", parallel = parallel)
-  summary_dt <- summary_zlm_fit$datatable
-
-  # extract p-values and logFC for each gene
-  pvals <- summary_dt[contrast == "pert1" & component == "H", .(primerid, `Pr(>Chisq)`)]
-  lfc <- summary_dt[contrast == "pert1" & component == "logFC", .(primerid, coef, ci.hi, ci.lo)]
-
-  # assemble and sort output
-  output <- as.data.frame(merge(lfc, pvals, by = "primerid"))
+  message("Calculating likelihood ratio tests")
+  zlm_lr <- lrTest(zlm_fit, "pert")
+  pvalues <- zlm_lr[, , "Pr(>Chisq)"]
+  if (is.array(pvalues)) {
+    pvalues <- data.frame(primerid = names(pvalues[, pvalue]), pvalue = pvalues[, pvalue])
+  } else {
+    pvalues <- data.frame(primerid = rownames(pert_object), pvalue = pvalues[[pvalue]])
+  }
+  
+  # combine log fold changes and p-values to create output
+  output <- merge(lfc, pvalues, by = "primerid")
   colnames(output) <- c("gene", "logFC", "ci_high", "ci_low", "pvalue")
   output <- output[order(output$pvalue), ]
-
+  
   return(output)
   
 }
@@ -302,7 +330,10 @@ de_DEsingle <- function(pert_object, assay = "normcounts", ...) {
   de_results <- DEsingle(counts = normcounts, group = groups)
   
   # reformat output
-  data.frame(gene = rownames(de_results), de_results, stringsAsFactors = FALSE, row.names = NULL)
+  output <- data.frame(gene = rownames(de_results), de_results, stringsAsFactors = FALSE,
+                       row.names = NULL)
+  
+  return(output)
   
 }
 
@@ -334,7 +365,10 @@ de_LFC <- function(pert_object, assay = "logcounts", pseudocount = 1, ...) {
   avg_genex$lfc <- log2(avg_genex$pert) - log2(avg_genex$ctrl)
   
   # reformat output
-  data.frame(gene = rownames(avg_genex), avg_genex, stringsAsFactors = FALSE, row.names = NULL)
+  output <- data.frame(gene = rownames(avg_genex), avg_genex, stringsAsFactors = FALSE,
+                       row.names = NULL)
+  
+  return(output)
   
 }
 
@@ -378,22 +412,25 @@ test_de <- function(pert, sce, pert_level, cell_batches, pert_input_function, ma
   
   # only retain genes within maximum distance if specified
   if (!is.null(max_dist)) {
+    message("Filtering for genes within ", max_dist, " basepairs from perturbation.")
     pert_object <- filt_max_dist_pert(pert_object, pert_level = pert_level, pert = pert,
                                       max_dist = max_dist)
   }
   
   # perform differential gene expression test. warnings and errors get reported and in case of
   # errors NULL is returned for that perturbation.
-  tryCatch(
+  output <- tryCatch(
     withCallingHandlers({
       de_function(pert_object, formula = formula)
     }, warning = function(w) {
       message("For perturbation ", pert, ": ", w)
       invokeRestart("muffleWarning")
-    }), error = function(e){
+    }), error = function(e) {
       message("For perturbation ", pert, ": ", e)
       return(NULL)
     })
+  
+  return(output)
   
 }
 
@@ -411,8 +448,9 @@ pert_input <- function(pert, sce, pert_level, ...) {
   pert_status <- DataFrame(pert = as.factor(pert_data[colnames(sce)]))
   colData(sce) <- cbind(pert_status, colData(sce))
   
-  # add perturbation id and perturbation level as metadata and return output
+  # add perturbation id and perturbation level as metadata
   metadata(sce) <- c(metadata(sce), pert_id = pert, pert_level = pert_level)
+  
   return(sce)
   
 }
@@ -463,8 +501,9 @@ pert_input_sampled <- function(pert, sce, pert_level, cell_batches, n_ctrl) {
   pert_status <- DataFrame(pert = as.factor(pert_data[colnames(pert_object)]))
   colData(pert_object) <- cbind(pert_status, colData(pert_object))
   
-  # add perturbation id and perturbation level as metadata and return output
+  # add perturbation id and perturbation level as metadata
   metadata(pert_object) <- c(metadata(pert_object), pert_id = pert, pert_level = pert_level)
+  
   return(pert_object)
   
 }
@@ -549,3 +588,4 @@ annotate_de_output <- function(de_output, pert_coords, gene_coords) {
   return(de_output)
   
 }
+
