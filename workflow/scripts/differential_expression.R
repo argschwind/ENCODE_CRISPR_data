@@ -1,5 +1,5 @@
 ## This snakemake R-script performs differential gene expression analysis for Perturb-seq
-## perturbations to discover cis-regulatory interactions
+## discover regulatory interactions from perturbation - gene pairs
 
 # save.image(paste0("diff_expr_", snakemake@wildcards$chr, ".rda"))
 # stop()
@@ -17,6 +17,10 @@ suppressPackageStartupMessages({
   library(SingleCellExperiment)
   source(file.path(snakemake@scriptdir, "R_functions/differential_expression_fun.R")) 
 })
+
+# parse method wildcard and attach required packages
+method <- snakemake@wildcards$method
+library(method, character.only = TRUE)
 
 # register parallel backend if specified (if more than 1 thread provided) and set RNG seed
 if (snakemake@threads > 1) {
@@ -52,20 +56,30 @@ message("Normalizing transcript counts.")
 sce <- normalize_cens_mean(sce)
 assay(sce, "logcounts") <- log1p(assay(sce, "normcounts"))
 
+# ensure that max distance if numeric if not NULL
+if (!is.null(snakemake@params$max_dist)) {
+  max_dist <- as.numeric(snakemake@params$max_dist)
+} else {
+  max_dist <- snakemake@params$max_dist
+}
+
+# get differential expression function based on method from wildcards
+de_function <- get(paste0("de_", method))
+
 # perform differential gene expression analysis
 message("Performing differential expression tests.")
 output <- test_differential_expression(sce, pert_level = pert_level,
-                                       max_dist = as.numeric(snakemake@params$max_dist),
-                                       method = snakemake@wildcards$method,
+                                       max_dist = max_dist,
+                                       de_function = de_function,
                                        formula = snakemake@params$formula,
                                        n_ctrl = snakemake@params$n_ctrl,
                                        cell_batches = snakemake@params$cell_batches,
-                                       p_adj_method = snakemake@params$p_adjust)
+                                       p_adj_method = snakemake@params$p_adj_method)
 
 # reformat output
 output <- output %>% 
-  select(-c(gene_chr, gene_end, pert_center)) %>% 
-  dplyr::rename(chr = pert_chr, gene_tss = gene_start, dist_to_tss = distance)
+  select(-c(gene_end, pert_center)) %>% 
+  dplyr::rename(gene_tss = gene_start, dist_to_tss = distance)
 
 # save DE output to file
 message("Saving output to file.")

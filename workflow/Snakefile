@@ -3,41 +3,47 @@
 configfile: "config/config.yml"
 
 # workflow rules
-include: "rules/create_gasperini_input.smk"
 include: "rules/perform_diff_expr_tests.smk"
 include: "rules/perform_power_simulations.smk"
 include: "rules/create_input_and_output.smk"
 include: "rules/additional_analyses.smk"
 include: "rules/create_encode_output.smk"
-include: "rules/format_flowfish_data.smk"
+include: "rules/gasperini_dataset.smk"
+include: "rules/tapseq_dataset.smk"
+include: "rules/flowfish_dataset.smk"
 
-# perform differential expression and power analyses to create main output files
+# perform all differential expression and power analyses to create main output files
 rule all:
   input:
-    output = expand("results/{sample}/output_{sd}gStd_{method}_{strategy}.tsv.gz",
-      sample = "Gasperini2019", sd = 0.13, method = "MAST", strategy = "perCRE"),
     power_analysis = expand("results/{sample}/power_analysis_{sd}gStd_{method}_{strategy}.html",
-      sample = "Gasperini2019", sd = 0.13, method = "MAST", strategy = "perCRE")
+      sample = ["Gasperini2019", "TAPseq", "TAPseqChr8", "TAPseqChr11"], sd = 0.13, method = "MAST",
+      strategy = "perCRE")
 
 # create all output files for ENCODE
 rule encode:
   input:
     encode_files = expand("results/ENCODE/ENCODE_{sample}_{sd}gStd_MAST_perCRE.tsv.gz",
-      sample = "Gasperini2019", sd = 0.13),
-    eg_benchmarking_files = expand("results/ENCODE/EPCrisprBenchmark_Gasperini2019_{sd}gStd_{pwr}pwrAt{es}effect_{genome}.tsv.gz",
+      sample = ["Gasperini2019", "TAPseq"],  sd = 0.13),
+    gasperini = expand("results/ENCODE/EPCrisprBenchmark_Gasperini2019_{sd}gStd_{pwr}pwrAt{es}effect_{genome}.tsv.gz",
       sd = 0.13, pwr = 0.8, es = 15, genome = ["hg19", "GRCh38"]),
+    tapseq = expand("results/ENCODE/EPCrisprBenchmark_TAPseq_{sd}gStd_{pwr}pwrAt{es}effect_GRCh38.tsv.gz",
+      sd = 0.13, pwr = 0.8, es = 15),
     flowfish = expand("results/ENCODE/EPCrisprBenchmark_FlowFISH_K562_{genome}.tsv.gz",
       genome = ["hg19", "GRCh38"])
+
+# auxillary rules, remove once done ----------------------------------------------------------------
 
 # perform all DE tests
 rule all_de_tests:
   input:
     expand("results/{sample}/diff_expr/output_MAST_{pert_level}.tsv.gz",
-      sample = "Gasperini2019", pert_level = ["perCRE", "perGRNA"])
-
+      sample = ["Gasperini2019", "TAPseq", "TAPseqChr8", "TAPseqChr11"],
+      pert_level = ["perCRE"])
+#      pert_level = ["perCRE", "perGRNA"])
+      
 # perform all power simulations
 rule all_pwr_sims:
   input:
     expand("results/{sample}/power_sim/power_{effect_size}_{sd}gStd_MAST_perCRE.tsv.gz",
-      sample = "Gasperini2019", effect_size = config["power_simulations"]["effect_sizes"],
-      sd = 0.13)
+      sample = ["Gasperini2019", "TAPseq", "TAPseqChr8", "TAPseqChr11"],
+      effect_size = config["power_simulations"]["effect_sizes"], sd = 0.13)

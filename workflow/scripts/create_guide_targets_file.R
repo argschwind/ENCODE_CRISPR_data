@@ -2,16 +2,17 @@
 ## Overlaps guides with targets and assign each guide to overlapping targets. Includes any known
 ## guide targets specified via a known_targets file
 
-
 # opening log file to collect all messages, warnings and errors
 log <- file(snakemake@log[[1]], open = "wt")
 sink(log)
 sink(log, type = "message")
 
 # required packages
-library(dplyr)
-library(readr)
-library(rtracklayer)
+suppressPackageStartupMessages({
+  library(dplyr)
+  library(readr)
+  library(rtracklayer)
+})
 
 # Load data ----------------------------------------------------------------------------------------
 
@@ -55,7 +56,7 @@ if (!is.null(snakemake@input$known_targets)) {
   
   # extract required columns in correct order (any other columns are ignored)
   known_target_cols <- c("name", "target_chr", "target_start", "target_end", "target_name",
-                         "target_strand")
+                         "target_strand", "target_type")
   known_targets <- select(known_targets, all_of(known_target_cols))
   
 }
@@ -96,8 +97,11 @@ ovl <- findOverlaps(query = guides_gr, subject = targets_gr, ignore.strand = TRU
 colnames(targets) <- paste0("target_", colnames(targets))
 guide_targets <- bind_cols(guides[queryHits(ovl), ], targets[subjectHits(ovl), ])
 
+# add target_type for guides that were overlapped with candidate targets based on provided type
+guide_targets <- mutate(guide_targets, target_type = snakemake@params$targets_type)
+
 # add known targets and sort the same as input guide file
-guide_targets <- bind_rows(known = known_targets, assigned = guide_targets, .id = "target_type") %>% 
+guide_targets <- bind_rows(known_targets, guide_targets) %>% 
   mutate(name = factor(name, levels = guide_ids)) %>% 
   arrange(name)
 
@@ -108,10 +112,11 @@ targets_per_guide <- count(guide_targets, name, name = "targets", .drop = FALSE)
 targets_bed <- guide_targets %>% 
   mutate(score = if_else(target_type == "known", true = 1000, false = 500)) %>% 
   select(target_chr, target_start, target_end, target_name, score, target_strand) %>% 
-  distinct()
+  distinct() %>% 
+  arrange(target_chr, target_start, target_end, target_name)
 
 # save output to files
-write_tsv(select(guide_targets, -target_type), file = snakemake@output$guide_targets_file)
+write_tsv(guide_targets, file = snakemake@output$guide_targets_file)
 write_tsv(targets_per_guide, file = snakemake@output$targets_per_guide_file)
 write_tsv(targets_bed, file = snakemake@output$targets_bed, col_names = FALSE)
 

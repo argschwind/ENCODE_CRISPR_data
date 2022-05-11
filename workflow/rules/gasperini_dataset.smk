@@ -123,12 +123,14 @@ rule create_guide_targets_file:
     guide_targets_file = "resources/Gasperini2019/guide_targets.tsv",
     targets_bed = "resources/Gasperini2019/guide_targets.bed",
     targets_per_guide_file = "resources/Gasperini2019/guide_targets_overlaps.tsv"
+  params:
+    targets_type = "enh"
   log: "resources/Gasperini2019/logs/create_targets_file.log"
   conda: "../envs/r_process_crispr_data.yml"
   script:
     "../scripts/create_guide_targets_file.R"
     
-# convert to summarized experiment object like for TAP-seq data, with added gene annotation
+# create Perturb-seq SCE object for Gasperini dataset
 rule create_sce_gasperini:
   input:
     cds = "resources/Gasperini2019/GSE120861_at_scale_screen.cds.rds",

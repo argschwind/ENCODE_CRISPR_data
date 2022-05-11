@@ -152,8 +152,9 @@ filter_cells_per_pert <- function(sce, min_cells, pert_level) {
 #'   performed? I.e. the name of the altExp that should be used as perturbation status matrix.
 #' @param max_dist Only consider genes within specified distance from perturbation for differential
 #'   expression tests (default: NULL). If NULL all genes are tested against all perturbations.
-#' @param method Function to perform differential gene expression between perturbed and control
-#'   cells.
+#' @param de_function Function to used for differential expression testing. Needs to take an SCE
+#'   object with at least one column called 'pert' in colData providing perturbation status for a
+#'   given perturbation. See code of de_MAST() for an example.
 #' @param formula Formula for differential expression model (default: ~pert). Ignored when not
 #'   appropriate.
 #' @param n_ctrl Specifies how many negative control cells should be randomly drawn
@@ -164,15 +165,13 @@ filter_cells_per_pert <- function(sce, min_cells, pert_level) {
 #' @param p_adj_method Method to use for multiple testing correction. For more details see
 #'   \code{\link[stats]{p.adjust}}.
 test_differential_expression <- function(sce, pert_level, max_dist = NULL,
-                                         method = c("MAST", "DEsingle", "LFC"),
-                                         formula = ~pert, n_ctrl = 5000, cell_batches = NULL, 
+                                         de_function = de_MAST, formula = ~pert, n_ctrl = 5000,
+                                         cell_batches = NULL, 
                                          p_adj_method = c("fdr", "holm", "hochberg", "hommel",
                                                           "bonferroni", "BH", "BY", "none")) {
   
   # parse arguments and attach required packages (if needed)
   p_adj_method <- match.arg(p_adj_method)
-  method <- match.arg(method)
-  if (method %in% c("MAST", "DEsingle")) library(method, character.only = TRUE)
   
   # check colData
   col_names <- colnames(colData(sce)) 
@@ -199,9 +198,6 @@ test_differential_expression <- function(sce, pert_level, max_dist = NULL,
     stop("Invalid 'n_ctrl' argument.", call. = FALSE)
   }
   
-  # get DE function for specified method
-  de_function <- get(paste0("de_", method))
-  
   # create vector of perturbations to test
   perts <- structure(rownames(altExp(sce, pert_level)), names = rownames(altExp(sce, pert_level)))
   
@@ -220,14 +216,23 @@ test_differential_expression <- function(sce, pert_level, max_dist = NULL,
     output <- output[order(output$pval_adj), ]
   }
   
-  # add average observed gene expression and number of cells per perturbation
-  output <- annotate_cells_and_expr(output, sce = sce, pert_level = pert_level)
+  # annotate output with enhancer and gene coordinates and compute distance
+  output <- annotate_dist_to_gene(output, sce = sce, pert_level = pert_level)
   
   # add perturbation level used for DE tests
   output$pert_level <- pert_level
   
-  # annotate output with enhancer and gene coordinates and compute distance
-  output <- annotate_dist_to_gene(output, sce = sce, pert_level = pert_level)
+  # add target type information to output if provided
+  pert_data <- as.data.frame(rowData(altExp(sce, pert_level)))
+  if ("target_type" %in% colnames(pert_data)) {
+    target_type <- pert_data[, c("name", "target_type")]
+    output <- left_join(output, target_type, by = c("perturbation" = "name"))
+  } else {
+    output$target_type <- NA_character_
+  }
+  
+  # add average observed gene expression and number of cells per perturbation
+  output <- annotate_cells_and_expr(output, sce = sce, pert_level = pert_level)
   
   return(output)
   
@@ -554,7 +559,7 @@ annotate_dist_to_gene <- function(de_output, sce, pert_level) {
                             perturbation = rownames(pert_row_data),
                             stringsAsFactors = FALSE)
   
-  # annotate differential expression output with perturbation and tss coordinates
+  # annotate differential expression output with perturbation, gene/TSS coordinates and distance
   output <- annotate_de_output(de_output, pert_coords = pert_coords, gene_coords = gene_coords)
   
   return(output)
@@ -573,19 +578,19 @@ annotate_de_output <- function(de_output, pert_coords, gene_coords) {
   de_output$pert_center <- floor((de_output$pert_start + de_output$pert_end) / 2)
   
   # compute distance of perturbation center to gene coordinates
-  de_output <- mutate(de_output, distance = if_else(
-    gene_strand == "-", true = case_when(
+  de_output <- mutate(de_output, distance = case_when(
+    pert_chr != gene_chr ~ NA_real_,
+    gene_strand == "-" ~ case_when(
       pert_center < gene_start ~ gene_start - pert_center,
       pert_center > gene_end ~ gene_end - pert_center,
-      TRUE ~ 0
-    ), false = case_when(
+      TRUE ~ 0),
+    gene_strand == "+" ~ case_when(
       pert_center < gene_start ~ pert_center - gene_start,
       pert_center > gene_end ~ pert_center - gene_end,
-      TRUE ~ 0
-    )
+      TRUE ~ 0),
+    TRUE ~ NA_real_
   ))
   
   return(de_output)
   
 }
-

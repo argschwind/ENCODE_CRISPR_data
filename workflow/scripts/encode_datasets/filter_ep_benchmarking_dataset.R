@@ -25,7 +25,8 @@ crispr_data_cols <- cols(
   pValueAdjusted = col_double(),
   ValidConnection = col_character(),
   CellType = col_character(),
-  Reference = col_character()
+  Reference = col_character(),
+  Regulated = col_logical()
 )
 
 # load unfiltered dataset

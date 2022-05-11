@@ -1,8 +1,10 @@
-## Extract Gasperini positive control targets and guides, and save to file
+## Extract Gasperini positive TSS control targets and guides, and save to file
 
 # required packages
-library(tidyverse)
-library(readxl)
+suppressPackageStartupMessages({
+  library(tidyverse)
+  library(readxl)
+})
 
 # Load input data ----------------------------------------------------------------------------------
 
@@ -50,9 +52,9 @@ pos_ctrls <- left_join(pos_ctrls, pos_ctrl_targets, by = c("Target_Site", "Categ
 # reformat to the same format as guide targets file
 pos_ctrls <- pos_ctrls %>% 
   dplyr::rename(spacer = Spacer) %>% 
-  mutate(target_name = paste("PosCtrl", Target_Site, sep = "|"),
-         target_strand = ".") %>% 
-  select(name, target_chr, target_start, target_end, target_name, target_strand)
+  mutate(target_name = paste("TSSCtrl", Target_Site, sep = "|"),
+         target_strand = ".", target_type = "TSSCtrl") %>% 
+  select(name, target_chr, target_start, target_end, target_name, target_strand, target_type)
 
 # write new guide targets to file
 write_tsv(pos_ctrls, file = snakemake@output[[1]])

@@ -1,3 +1,5 @@
+## Functions to perform power simulations using specified effect sizes
+
 library(DESeq2)
 library(scran)
 library(dplyr)
@@ -88,11 +90,14 @@ fit_negbinom_deseq2 <- function(sce, assay = "counts",
 #'   specified control cells are sampled from these batches with equal proportions as perturbed
 #'   cells.
 simulate_diff_expr <- function(sce, effect_size, pert_level, max_dist = NULL, genes_iter = FALSE,
-                               guide_sd = 0, center = FALSE, rep = 1, norm = "real",
-                               de_function = de_MAST, formula = ~ pert, n_ctrl = 5000,
-                               cell_batches = NULL) {
+                               guide_sd = 0, center = FALSE, rep = 1,
+                               norm = c("real", "sim_nonpert"), de_function = de_MAST,
+                               formula = ~ pert, n_ctrl = 5000, cell_batches = NULL) {
   
   # parse input ------------------------------------------------------------------------------------
+  
+  # parse arguments
+  norm <- match.arg(norm)
   
   # check colData
   col_names <- colnames(colData(sce)) 
@@ -243,6 +248,7 @@ simulate_diff_expr_pert_real <- function(pert, sce, pert_level, cell_batches, pe
   
   # simulate perturb-seq data and perform differential expression test either all genes at once or
   # one gene at a time
+  message("Simulating differential expression.")
   pert_genes <- rownames(pert_object)
   if (genes_iter == FALSE) pert_genes <- list(pert_genes)
   output <- lapply(pert_genes, FUN = simulate_pert_object_real, pert_object = pert_object,
@@ -291,7 +297,7 @@ simulate_pert_object_real <- function(pert_object, pert_genes, effect_size,
   assay(sim_object, "logcounts") <- log1p(assay(sim_object, "normcounts"))
   
   # perform differential gene expression test
-  output <- de_function(sim_object[region_genes, ], formula = formula)
+  output <- de_function(sim_object, formula = formula)
   
   # add column labeling genes that were perturbed
   output$perturbed <- output$gene %in% pert_genes  
@@ -335,6 +341,7 @@ simulate_diff_expr_pert_sim <- function(pert, sce, pert_level, cell_batches, per
   
   # simulate perturb-seq data and perform differential expression test either all genes at once or
   # one gene at a time
+  message("Simulating differential expression.")
   pert_genes <- region_genes
   if (genes_iter == FALSE) pert_genes <- list(pert_genes)
   output <- lapply(pert_genes, FUN = simulate_pert_object_sim, pert_object = pert_object,

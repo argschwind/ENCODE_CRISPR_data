@@ -13,15 +13,17 @@ de_cols <- cols(
   ci_low = col_double(),
   pvalue = col_double(),
   pval_adj = col_double(),
-  cells = col_double(),
-  avg_expr = col_double(),
-  pert_level = col_character(),
-  chr = col_character(),
+  pert_chr = col_character(),
   pert_start = col_integer(),
   pert_end = col_integer(),
+  gene_chr = col_character(),
   gene_tss = col_integer(),
   gene_strand = col_character(),
-  dist_to_tss = col_double()
+  dist_to_tss = col_double(),
+  pert_level = col_character(),
+  target_type = col_character(),
+  cells = col_double(),
+  avg_expr = col_double()
 )
 
 # load DE results for each chromosome

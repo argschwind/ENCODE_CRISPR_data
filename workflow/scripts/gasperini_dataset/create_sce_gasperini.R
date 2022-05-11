@@ -1,20 +1,21 @@
 ## Create a SingleCellExperiment object from Gasperini et al. data including perturbation status as
 ## alternative experiments (altExp)
 
-
 # opening log file to collect all messages, warnings and errors
 log <- file(snakemake@log[[1]], open = "wt")
 sink(log)
 sink(log, type = "message")
 
 # required packages and functions
-library(monocle)
-library(SingleCellExperiment)
-library(rtracklayer)
-library(readr)
-library(dplyr)
-library(tidyr)
-source(file.path(snakemake@scriptdir, "../R_functions/create_perturb_sce.R"))
+suppressPackageStartupMessages({
+  library(monocle)
+  library(SingleCellExperiment)
+  library(rtracklayer)
+  library(readr)
+  library(dplyr)
+  library(tidyr)
+  source(file.path(snakemake@scriptdir, "../R_functions/create_perturb_sce.R"))
+})
 
 # Load data ----------------------------------------------------------------------------------------
 
@@ -28,15 +29,16 @@ annot <- import(snakemake@input$annot)
 
 # column types in gRNA targets file
 grna_targets_cols <- cols(
+  .default = col_character(),  # for target_type columns, which is optional as of now
   chr = col_character(),
-  start = col_double(),
-  end = col_double(),
+  start = col_integer(),
+  end = col_integer(),
   name = col_character(),
   strand = col_character(),
   spacer = col_character(),
   target_chr = col_character(),
-  target_start = col_double(),
-  target_end = col_double(),
+  target_start = col_integer(),
+  target_end = col_integer(),
   target_name = col_character(),
   target_strand = col_character()
 )
@@ -59,6 +61,9 @@ message("Getting TSS annotations...")
 # extract gene locus annotations
 genes <- annot[annot$type == "gene"]
 
+# only retain annotations on autosomes and chrX
+genes <- genes[seqnames(genes) %in% c(paste0("chr", 1:22), "chrX")]
+
 # set names to gene ids without version suffix
 names(genes) <- sub("\\..+", "", genes$gene_id)
 
@@ -66,7 +71,7 @@ names(genes) <- sub("\\..+", "", genes$gene_id)
 gene_tss <- resize(genes, width = 1, fix = "start")
 
 # check if any genes in expression data are missing from gene annotations
-missing_genes <- length(setdiff(rownames(expr), names(genes)))
+missing_genes <- length(setdiff(rownames(expr), names(gene_tss)))
 if (length(missing_genes) > 0) {
   warning(missing_genes, " genes in expr not found in annot will be dropped.", call. = FALSE)
 }

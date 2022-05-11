@@ -1,4 +1,4 @@
-## Combine differential expression and power simulation results to create output data sets
+## Reformat CRISPR enhancer screen pipeline output to ENCODE format
 
 # required packages
 suppressPackageStartupMessages({
@@ -21,16 +21,18 @@ results_cols <- cols(
   ci_low = col_double(),
   pvalue = col_double(),
   pval_adj = col_double(),
-  cells = col_double(),
-  avg_expr = col_double(),
-  pert_level = col_character(),
-  chr = col_character(),
-  pert_start = col_double(),
-  pert_end = col_double(),
-  gene_tss = col_double(),
+  pert_chr = col_character(),
+  pert_start = col_integer(),
+  pert_end = col_integer(),
+  gene_chr = col_character(),
+  gene_tss = col_integer(),
   gene_strand = col_character(),
   dist_to_tss = col_double(),
-  disp_outlier_deseq2 = col_logical(),
+  pert_level = col_character(),
+  target_type = col_character(),
+  cells = col_double(),
+  avg_expr = col_double(),
+  disp_outlier_deseq2 = col_logical()
 )
 
 # load differential expression results
@@ -38,6 +40,9 @@ results <- read_tsv(snakemake@input$results, col_types = results_cols, progress 
 
 # load genome annotations
 annot <- import(snakemake@input$annot)
+
+# filter out any transcripts that should be ignored
+annot <- annot[!annot$transcript_id %in% snakemake@params$ignore_txs]
 
 # remove any version numbers from gene ids
 annot$gene_id <- sub("\\..+$", "", annot$gene_id)
@@ -54,7 +59,8 @@ guide_targets_cols <- cols(
   target_start = col_double(),
   target_end = col_double(),
   target_name = col_character(),
-  target_strand = col_character()
+  target_strand = col_character(),
+  target_type = col_character()
 )
 
 # load guide targets file
@@ -126,7 +132,7 @@ names(features) <- NULL
 
 # extract perturbation coordinates
 pert_coords <- results %>% 
-  select(chr, pert_start, pert_end, perturbation) %>% 
+  select(pert_chr, pert_start, pert_end, perturbation) %>% 
   distinct() %>% 
   makeGRangesFromDataFrame(keep.extra.columns = TRUE, starts.in.df.are.0based = TRUE)
 
@@ -178,7 +184,7 @@ results <- results %>%
 # add TSS targeting flag to known TSS controls (if TSS control pattern is provided)
 if (!is.null(snakemake@params$tss_ctrl_tag)) {
   results <- results %>% 
-    mutate(ValidConnection = if_else(grepl(perturbation, pattern = snakemake@params$tss_ctrl_tag),
+    mutate(ValidConnection = if_else(target_type %in% snakemake@params$tss_ctrl_tag,
                                      true = "TSS targeting guide(s)", false = ValidConnection))
 }
 
@@ -213,23 +219,24 @@ output <- results %>%
 # add additional meta data columns in ENCODE style to create output
 output <- output %>% 
   mutate(strandPerturbationTarget = ".",
-         PerturbationTargetID = paste0(chr, ":", pert_start, "-", pert_end, ":",
+         PerturbationTargetID = paste0(pert_chr, ":", pert_start, "-", pert_end, ":",
                                        strandPerturbationTarget),
          name = paste(measuredGeneSymbol, PerturbationTargetID, sep = "|"),
-         CellType = snakemake@params$cell_type,
-         Reference = snakemake@params$reference)
+         Notes = NA_character_,
+         Reference = snakemake@params$reference,
+         CellType = snakemake@params$cell_type)
 
 # rename columns containing simulated power
 colnames(output) <- sub("^power_effect_size_", "PowerAtEffectSize", colnames(output))
 
 # reformat to ENCODE style (last 3 columns are not ENCODE format and need to be stripped for upload)
 output <- output %>% 
-  select(chrom = chr, chromStart = pert_start, chromEnd = pert_end, name, EffectSize = logFC,
-         strandPerturbationTarget, PerturbationTargetID, chrTSS = chr, startTSS,
+  select(chrom = pert_chr, chromStart = pert_start, chromEnd = pert_end, name, EffectSize = logFC,
+         strandPerturbationTarget, PerturbationTargetID, chrTSS = gene_chr, startTSS,
          endTSS, strandGene, EffectSize95ConfidenceIntervalLow = ci_low,
          EffectSize95ConfidenceIntervalHigh = ci_high, measuredGeneSymbol, measuredEnsemblID,
          guideSpacerSeq, guideSeq, Significant, pValue = pvalue, pValueAdjusted = pval_adj,
-         starts_with("PowerAtEffectSize"), ValidConnection, CellType, Reference,
+         starts_with("PowerAtEffectSize"), ValidConnection, Notes, CellType, Reference,
          distToTSS = dist_to_tss, avgGeneExpr = avg_expr, nPertCells = cells)
 
 # make sure output is sorted according to genomic coordinates

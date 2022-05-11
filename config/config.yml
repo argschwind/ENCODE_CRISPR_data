@@ -9,16 +9,34 @@ download_urls:
   liftover_chain: "https://hgdownload.cse.ucsc.edu/goldenPath/hg19/liftOver/hg19ToHg38.over.chain.gz"
   FlowFISH_K562: "https://raw.githubusercontent.com/EngreitzLab/ABC-GWAS-Paper/main/comparePredictorsToCRISPRData/comparisonRuns/K562-only/experimentalData/experimentalData.K562-only.txt"
 
+# specify which samples should be split by chromosome when performing DE tests and power simulations
+split_by_chr:
+  Gasperini2019: True
+  TAPseqChr8: False
+  TAPseqChr11: False
+
 # parameters for differential expression tests to map perturbations to target genes
 diff_expr:
   umis_per_cell:
-    Gasperini:  [1, 75000]
+    Gasperini2019:  [1, 75000]
+    TAPseqChr8:  [1, 6000]
+    TAPseqChr11: [1, 6000]
   min_cells:
     perGRNA: 15
     perCRE:  25
-  max_dist: 2e6
+  max_dist:
+    Gasperini2019: 2e6
+    TAPseqChr8: NULL
+    TAPseqChr11: NULL
   formula: "~pert+scale(detected_genes)"
-  n_ctrl: 5000
+  n_ctrl:
+     Gasperini2019: 5000
+     TAPseqChr8: 3500
+     TAPseqChr11: 3500
+  cell_batches:
+     Gasperini2019: NULL
+     TAPseqChr8:  "lane_barcodes"
+     TAPseqChr11: "lane_barcodes"
   padj_method: "fdr"
   padj_threshold: 0.05
   threads: 1
@@ -26,21 +44,47 @@ diff_expr:
 # parameters for power simulations to estimate statistical power for every perturbation-gene pair
 power_simulations:
   effect_sizes: [0.1, 0.15, 0.2, 0.25, 0.5]
-  remove_genes: NULL
+  remove_genes:
+    Gasperini2019: NULL
+    TAPseqChr8: "HBE1"
+    TAPseqChr11: "HBE1"
   size_factors: "poscounts"
   fit_type: "parametric"
-  norm: "sim_nonpert"
+  norm:
+    Gasperini2019: "sim_nonpert"
+    TAPseqChr8:  "real"
+    TAPseqChr11: "real"
   rep: 20
   threads: 1
-  
-# parameters to create output for EP benchmarking files
-ep_benchmarking:
-  dist_to_TSS: [1000, 1e6]
 
+# parameters to create output in ENCODE and EP benchmarking format
+encode_datasets:
+  ignore_transcripts:
+    Gasperini2019: NULL
+    TAPseq: ["ENST00000380252.6", "ENST00000292896.3", "ENST00000380237.5"]
+  dist_to_TSS: [1000, 1e6]
+  annot:
+    Gasperini2019: "resources/gencode.v26lift37.annotation.gtf.gz"
+    TAPseq: "resources/gencode.v29.annotation.gtf.gz"
+  genome_build:
+    Gasperini2019: "hg19"
+    TAPseq: "GRCh38"
+  
 # additional metadata per experiment
 metadata:
   Gasperini2019:
     cell_type: "K562"
     reference: "Gasperini et al., 2019"
     gene_ids: "ensembl"
-    tss_ctrl_tag: "PosCtrl"
+    tss_ctrl_tag: "TSSCtrl"
+  TAPseq:
+    cell_type: "K562"
+    reference: "Schraivogel et al., 2020"
+    gene_ids: "symbol"
+    tss_ctrl_tag: "TSSCtrl"
+
+# additional parameters to process TAP-seq dataset
+process_tapseq:
+  remove_lanes:
+    TAPseqChr8:  []
+    TAPseqChr11: ["CATCGACC"]

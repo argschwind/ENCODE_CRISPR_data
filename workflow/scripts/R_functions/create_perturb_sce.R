@@ -39,7 +39,8 @@ create_pert_sce <- function(expr, annot, pert_status, grna_annot,
   
   # process feature annotations --------------------------------------------------------------------
   
-  # raise warning if annot does not have names
+  # if annot does not have names raise warning and abort if annot contains more features than genes.
+  # if annot has names, check that names of annot uniquely identify genes
   if (is.null(names(annot))) {
     if (length(annot) == nrow(expr)) {
       warning("annot does not have names. Assuming annot is in order with rows in expr.",
@@ -51,10 +52,13 @@ create_pert_sce <- function(expr, annot, pert_status, grna_annot,
   } else if (all(rownames(expr) %in% names(annot)) == FALSE) {
     stop("Not all expr rownames found in annot names. Cannot assign annotations to genes in expr.",
          call. = FALSE)
+  } else if (any(table(names(annot)[names(annot) %in% rownames(expr)]) > 1)) {
+    stop("Duplicated names in annot for genes in expr. Cannot assign annotations to genes in expr.",
+         call. = FALSE)
   } else {
     annot <- annot[rownames(expr)]
   }
-
+  
   # compute number of UMIs and detected genes per cell ---------------------------------------------
   
   # compute total umis and number of detected genes per cell
@@ -66,7 +70,7 @@ create_pert_sce <- function(expr, annot, pert_status, grna_annot,
                           detected_genes = genes_per_cell,
                           row.names = names(umis_per_cell) )
   
-  # create perturbation status SumarizedExperiment objects -----------------------------------------
+  # create perturbation status SummarizedExperiment objects ----------------------------------------
   
   # create gRNA-level perturbation matrix
   grna_pert_status <- create_pert_matrix(pert_status, expr = expr, pert_ids = "grna")
@@ -75,20 +79,26 @@ create_pert_sce <- function(expr, annot, pert_status, grna_annot,
   grna_perts_se <- create_pert_se_obj(grna_pert_status, pert_annot = grna_annot)
   
   # create target-level SE object, if gRNA targets are provided
-  if (ncol(grna_annot) == 11) {
+  target_cols <- c("target_chr", "target_start", "target_end", "target_name", "target_strand")
+  if (all(target_cols %in% colnames(grna_annot)) == TRUE) {
     
     # add gRNA targets for each gRNA to pert_status
-    pert_status <- dplyr::left_join(pert_status, grna_annot[, c("name", "target_name")],
-                                    by = c("grna" = "name"))
+    pert_status <- left_join(pert_status, grna_annot[, c("name", "target_name")],
+                             by = c("grna" = "name"))
     
     # create target-level perturbation matrix
     target_pert_status <- create_pert_matrix(pert_status, expr = expr, pert_ids = "target_name")
     
+    # get unique targets and rename mandatory columns
+    target_annot <- distinct(grna_annot[, seq(from = 7, to = ncol(grna_annot), by = 1)])
+    cols_idx <- colnames(target_annot) %in% target_cols
+    colnames(target_annot)[cols_idx] <- sub("target_", "", colnames(target_annot)[cols_idx])
+    
     # create perturbation status SE object for target-level perturbations
-    target_annot <- distinct(grna_annot[, 7:11])
-    colnames(target_annot) <- sub("target_", "", colnames(target_annot))
     target_perts_se <- create_pert_se_obj(target_pert_status, pert_annot = target_annot)
     
+  } else {
+    target_perts_se <- NULL
   }
   
   # create SingleCellExperiment output -------------------------------------------------------------
@@ -96,7 +106,7 @@ create_pert_sce <- function(expr, annot, pert_status, grna_annot,
   # create SingleCellExperiment object from expression, column data and gene annotations
   sce <- SingleCellExperiment(assays = list(counts = expr), colData = cell_stats, rowRanges = annot)
   
-  # add perturbations to gene expression SCE object as alternative experiment
+  # add perturbations to gene expression SCE object as alternative experiment(s)
   altExp(sce, e = "grna_perts") <- grna_perts_se
   altExp(sce, e = targets_pert_name) <- target_perts_se
   
@@ -148,13 +158,13 @@ create_pert_matrix <- function(pert_status, expr, pert_ids = c("grna", "target_n
 
 # create a perturbation status SummarizedExperiment object
 create_pert_se_obj <- function(pert_status_mat, pert_annot) {
- 
+  
   # create DataFrames from pert_annot to use as rowData in SummarizedExperiment objects
   pert_annot <- DataFrame(pert_annot, row.names = pert_annot$name)
-   
+  
   # create SummarizedExperiment objects containing perturbation status and annotations
   pert_se_obj <- SummarizedExperiment(assays = list(perts = pert_status_mat),
-                                     rowData = pert_annot[rownames(pert_status_mat), ])
+                                      rowData = pert_annot[rownames(pert_status_mat), ])
   
   return(pert_se_obj)
   
@@ -165,11 +175,19 @@ validate_grna_annot <- function(grna_annot) {
   
   # allowed column name sets
   names_6cols <- c("chr", "start", "end", "name", "strand", "spacer")
+  names_7cols <- c(names_6cols, "target_type")
   names_11cols <- c(names_6cols, paste0("target_", names_6cols[1:5]))
-
+  names_12cols <- c(names_11cols, "target_type")
+  
+  # create list with all column name options
+  col_options <- list(names_6cols, names_7cols, names_11cols, names_12cols)
+  
   # check if grna column names are valid
   cols <- colnames(grna_annot)
-  if ((identical(cols, names_6cols) | identical(cols, names_11cols)) == FALSE) {
+  cols_valid <- vapply(col_options, FUN = identical, cols, FUN.VALUE = logical(1))
+  
+  # raise error if column names do not match one of the options
+  if (all(cols_valid == FALSE)) {
     stop("Invalid column names/order in grna_annot: [", paste(cols, collapse = ", "), "]",
          call. = FALSE)
   }

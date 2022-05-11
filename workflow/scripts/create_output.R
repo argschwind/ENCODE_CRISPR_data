@@ -1,13 +1,15 @@
 ## Combine differential expression and power simulation results to create output data sets
 
 # required packages
-library(dplyr)
-library(tidyr)
-library(readr)
+suppressPackageStartupMessages({
+  library(dplyr)
+  library(tidyr)
+  library(readr)
+})
 
 # load input data ----------------------------------------------------------------------------------
 
-# column types in DE results 
+# column types in DE results
 diff_expr_cols <- cols(
   perturbation = col_character(),
   gene = col_character(),
@@ -16,15 +18,17 @@ diff_expr_cols <- cols(
   ci_low = col_double(),
   pvalue = col_double(),
   pval_adj = col_double(),
-  cells = col_double(),
-  avg_expr = col_double(),
-  pert_level = col_character(),
-  chr = col_character(),
-  pert_start = col_double(),
-  pert_end = col_double(),
-  gene_tss = col_double(),
+  pert_chr = col_character(),
+  pert_start = col_integer(),
+  pert_end = col_integer(),
+  gene_chr = col_character(),
+  gene_tss = col_integer(),
   gene_strand = col_character(),
-  dist_to_tss = col_double()
+  dist_to_tss = col_double(),
+  pert_level = col_character(),
+  target_type = col_character(),
+  cells = col_double(),
+  avg_expr = col_double()
 )
 
 # load differential expression results
@@ -52,7 +56,9 @@ power <- power %>%
   pivot_wider(names_from = effect_size, names_prefix = "power_effect_size_", values_from = power)
 
 # add power to DE results
-output <- left_join(diff_expr, power, by = c("perturbation", "gene"))
+output <- diff_expr %>% 
+  left_join(power, by = c("perturbation", "gene")) %>% 
+  arrange(pert_chr, pert_start, pert_end, gene_chr, gene_tss, gene)
 
 # write to .tsv file
 write_tsv(output, file = snakemake@output[[1]])

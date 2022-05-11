@@ -2,15 +2,22 @@
 
 ruleorder: liftover_crispr_dataset > create_ep_benchmarking_dataset
 
+# function to get samples that require liftover from hg19 to GRCh38
+def liftover_samples(config):
+  genome_builds = config["encode_datasets"]["genome_build"].items()
+  liftover_samples = list(dict(filter(lambda x: x[1] == "hg19", genome_builds)).keys())
+  return(liftover_samples)
+
 # compile output files in ENCODE format
 rule create_encode_dataset:
   input:
     results = "results/{sample}/output_{sd}gStd_{method}_{strategy}.tsv.gz",
-    annot = "resources/gencode.v26lift37.annotation.gtf.gz",
+    annot = lambda wildcards: config["encode_datasets"]["annot"][wildcards.sample],
     guide_targets = "resources/{sample}/guide_targets.tsv"
   output: "results/ENCODE/ENCODE_{sample}_{sd}gStd_{method}_{strategy}.tsv.gz"
   params:
-    tss_min_dist = 1000,
+    ignore_txs = lambda wildcards: config["encode_datasets"]["ignore_transcripts"][wildcards.sample],
+    tss_min_dist = config["encode_datasets"]["dist_to_TSS"][0],
     gene_ids = lambda wildcards: config["metadata"][wildcards.sample]["gene_ids"],
     tss_ctrl_tag = lambda wildcards: config["metadata"][wildcards.sample]["tss_ctrl_tag"],
     padj_threshold = config["diff_expr"]["padj_threshold"],
@@ -24,9 +31,11 @@ rule create_encode_dataset:
 rule create_ep_benchmarking_dataset:
   input: "results/ENCODE/ENCODE_{sample}_{sd}gStd_MAST_perCRE.tsv.gz"
   output: "results/ENCODE/EPCrisprBenchmark_{sample}_{sd}gStd_unfiltered_{genome}.tsv.gz"
-  conda: "../envs/r_process_crispr_data.yml"
   params:
-     tss_to_dist = config["ep_benchmarking"]["dist_to_TSS"]
+     tss_to_dist = config["encode_datasets"]["dist_to_TSS"],
+     effect_size = "logFC",
+     min_pct_change = None
+  conda: "../envs/r_process_crispr_data.yml"
   script:
     "../scripts/encode_datasets/create_ep_benchmarking_dataset.R"
     
@@ -34,28 +43,19 @@ rule create_ep_benchmarking_dataset:
 rule power_filter:
   input: "results/ENCODE/EPCrisprBenchmark_{sample}_{sd}gStd_unfiltered_{genome}.tsv.gz"
   output: "results/ENCODE/EPCrisprBenchmark_{sample}_{sd}gStd_{pwr}pwrAt{es}effect_{genome}.tsv.gz"
-  conda: "../envs/r_process_crispr_data.yml"
   params:
-     remove_filtered_pairs = True
+     remove_filtered_pairs = False
+  conda: "../envs/r_process_crispr_data.yml"
   script:
     "../scripts/encode_datasets/filter_ep_benchmarking_dataset.R"
     
 # liftover CRISPRi datasets ------------------------------------------------------------------------
 
-# download UCSC hg19 to hg38 liftover chain file
-rule download_chain_file:
-  output: "results/ENCODE/liftover/hg19ToHg38.over.chain.gz"
-  params:
-    url = config["download_urls"]["liftover_chain"]
-  conda: "../envs/r_process_crispr_data.yml"
-  shell:
-    "wget -O {output} {params.url}"
-
 # lift enhancer coordinates from hg19 to hg38 using UCSC's liftOver software    
 rule liftover_enhancers:
   input:
     results = "results/ENCODE/EPCrisprBenchmark_{sample}_{sd}gStd_unfiltered_hg19.tsv.gz",
-    chain = "results/ENCODE/liftover/hg19ToHg38.over.chain.gz"
+    chain = "resources/hg19ToHg38.over.chain.gz"
   output:
     hg19 = "results/ENCODE/liftover/{sample}_{sd}gStd_unfiltered/enh_hg19.bed",
     hg38 = "results/ENCODE/liftover/{sample}_{sd}gStd_unfiltered/enh_hg38.bed",
@@ -74,6 +74,8 @@ rule liftover_crispr_dataset:
     enh_hg38 = "results/ENCODE/liftover/{sample}_{sd}gStd_unfiltered/enh_hg38.bed",
     annot_hg38 = "resources/gencode.v26.annotation.gtf.gz"
   output: "results/ENCODE/EPCrisprBenchmark_{sample}_{sd}gStd_unfiltered_GRCh38.tsv.gz"
+  wildcard_constraints:
+    sample = "|".join(liftover_samples(config))
   conda: "../envs/r_process_crispr_data.yml"
   script:
     "../scripts/encode_datasets/liftover_crispr_dataset.R"

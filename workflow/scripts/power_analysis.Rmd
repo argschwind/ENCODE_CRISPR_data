@@ -33,15 +33,16 @@ results_cols <- cols(
   ci_low = col_double(),
   pvalue = col_double(),
   pval_adj = col_double(),
-  cells = col_double(),
-  avg_expr = col_double(),
-  pert_level = col_character(),
   chr = col_character(),
   pert_start = col_double(),
   pert_end = col_double(),
   gene_tss = col_double(),
   gene_strand = col_character(),
   dist_to_tss = col_double(),
+  pert_level = col_character(),
+  target_type = col_character(),
+  cells = col_double(),
+  avg_expr = col_double(),
   disp_outlier_deseq2 = col_logical()
 )
 

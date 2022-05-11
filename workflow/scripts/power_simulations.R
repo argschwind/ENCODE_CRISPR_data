@@ -56,6 +56,13 @@ message("Normalizing transcript counts.")
 sce <- normalize_cens_mean(sce)
 assay(sce, "logcounts") <- log1p(assay(sce, "normcounts"))
 
+# ensure that max distance if numeric if not NULL
+if (!is.null(snakemake@params$max_dist)) {
+  max_dist <- as.numeric(snakemake@params$max_dist)
+} else {
+  max_dist <- snakemake@params$max_dist
+}
+
 # convert 'percentage decrease' effect size to 'relative expression level'
 effect_size <- 1 - as.numeric(snakemake@wildcards$effect)
 
@@ -66,7 +73,7 @@ de_function <- get(paste0("de_", method))
 message("Performing power simulations.")
 output <- simulate_diff_expr(sce, effect_size = effect_size,
                              pert_level = pert_level,
-                             max_dist = as.numeric(snakemake@params$max_dist),
+                             max_dist = max_dist,
                              genes_iter = snakemake@params$genes_iter,
                              guide_sd = as.numeric(snakemake@wildcards$sd),
                              center = FALSE,

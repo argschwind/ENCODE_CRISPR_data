@@ -1,5 +1,14 @@
 ## Rules to create worflow input and output
 
+# download UCSC hg19 to hg38 liftover chain file
+rule download_chain_file:
+  output: "resources/hg19ToHg38.over.chain.gz"
+  params:
+    url = config["download_urls"]["liftover_chain"]
+  conda: "../envs/r_process_crispr_data.yml"
+  shell:
+    "wget -O {output} {params.url}"
+
 # download gencode annotations
 rule download_gencode_annotations:
   output: "resources/{annot}.annotation.gtf.gz"

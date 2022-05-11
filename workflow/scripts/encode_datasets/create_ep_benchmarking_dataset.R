@@ -1,18 +1,21 @@
 ## Extract columns for EP benchmarking CRISPR data format from full ENCODE data and filter for
 ## valid connections, distance to TSS and power.
 
-# save.image("ep_input.rda")
-# stop()
-
 # required packages
 suppressPackageStartupMessages({
   library(dplyr)
   library(readr)
 })
 
+# helper function to convert log-fold changes to percentage changes
+logFC_to_pctChange <- function(logFC, base = exp(1)) {
+  pct_change <- base ^ logFC - 1
+  return(pct_change)
+}
+
 # column types in ENCODE CRISPR data
 crispr_data_cols <- cols(
-  .default = col_double(),  # for power columns, which can vary in names
+  .default = col_double(),  # for power, avgGeneExpr and nPertCells columns, which may vary
   chrom = col_character(),
   chromStart = col_integer(),
   chromEnd = col_integer(),
@@ -34,11 +37,10 @@ crispr_data_cols <- cols(
   pValue = col_double(),
   pValueAdjusted = col_double(),
   ValidConnection = col_character(),
-  CellType = col_character(),
+  Notes = col_character(),
   Reference = col_character(),
-  distToTSS = col_double(),
-  avgGeneExpr = col_double(),
-  nPertCells = col_double()
+  CellType = col_character(),
+  distToTSS = col_double()
 )
 
 # load CRISPR dataset
@@ -50,11 +52,28 @@ dist_filter <- as.integer(snakemake@params$tss_to_dist)
 # filter for distance to TSS
 dat <- filter(dat, abs(distToTSS) > dist_filter[[1]], abs(distToTSS) <= dist_filter[[2]])
 
+# parse effect_size argument
+effect_size <- match.arg(snakemake@params$effect_size, choices = c("pctChange", "logFC", "log2FC"))
+
+# convert effect size to 'percent change in expression' if required
+if (effect_size != "pctChange") {
+  message("Converting EffectSize from ", effect_size, " to pctChange.")
+  base <- switch(effect_size, "logFC" = exp(1), "log2FC" = 2)
+  dat <- mutate(dat, EffectSize = logFC_to_pctChange(EffectSize, base = base))
+}
+
+# add 'Regulated' column, labeling detected enhancer-gene pairs
+if (is.null(snakemake@params$min_pct_change)) {
+  dat$Regulated <- dat$Significant == TRUE & dat$EffectSize < 0
+} else {
+  dat$Regulated <- dat$Significant == TRUE & dat$EffectSize <= snakemake@params$min_pct_change
+}
+
 # extract required columns for EP benchmarking data and sort according to coordinates
 output <- dat %>%
   select(chrom, chromStart, chromEnd, name, EffectSize, chrTSS, startTSS,
          endTSS, measuredGeneSymbol, Significant, pValueAdjusted, starts_with("PowerAtEffectSize"),
-         ValidConnection, CellType, Reference) %>% 
+         ValidConnection, CellType, Reference, Regulated) %>% 
   arrange(chrom, chromStart, chromEnd, measuredGeneSymbol)
 
 # write output to file
