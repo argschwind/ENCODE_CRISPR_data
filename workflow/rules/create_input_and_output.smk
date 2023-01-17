@@ -29,6 +29,16 @@ rule create_output:
   script:
     "../scripts/create_output.R"
     
+# plot differential expression results
+rule diff_expr_results:
+  input:
+    "results/{sample}/diff_expr/output_{method}_{strategy}.tsv.gz"
+  output:
+    "results/{sample}/diff_expr_{method}_{strategy}.html"
+  conda: "../envs/r_process_crispr_data.yml"
+  script:
+    "../scripts/diff_expr_results.Rmd"
+    
 # plot power analysis results
 rule power_analysis:
   input:

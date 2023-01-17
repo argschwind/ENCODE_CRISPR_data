@@ -1,0 +1,106 @@
+---
+title: "Differential expression results"
+author: "Andreas Gschwind"
+date: "`r format(Sys.time(), '%B %d, %Y')`"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = FALSE)
+# save.image("de_results.rda")
+# stop()
+```
+
+## Goal
+Exploration of differential expression results for sample `r snakemake@wildcards$sample`.
+
+```{r requiredPackages, warning=FALSE, message=FALSE}
+library(rtracklayer)
+library(tidyverse)
+library(cowplot)
+library(ggrepel)
+library(knitr)
+```
+
+***
+
+## CRE-level perturbations
+CRISPRi perturbations are collapsed per targeted CRE, i.e. any cell expressing a guide targeting a
+given CRE is considered perturbed for this CRE. These CRE-level perturbations are used to test for
+CRE-gene links and are the primary output of the differential expression analysis.
+
+```{r}
+# load files containing differential expression results
+results <- read_tsv(snakemake@input[[1]], show_col_types = FALSE)
+
+# add column indicating significant CRE-gene pairs
+fdr_threshold <- 0.05
+results <- mutate(results, significant = pval_adj < fdr_threshold)
+```
+
+### TSS targeting controls
+TSS targeting perturbations were included in the experiment as positive controls. These are used to
+assess how well the differential expression testing pipeline is well calibrated.
+
+```{r}
+# label for TSS controls
+tss_ctrl_label <- "TSSCtrl"
+
+# get TSS targeting controls and add a column specifying if the gene corresponds to the intended 
+# target (i.e is the gene of the perturbed TSS)
+tss_results <- results %>% 
+  filter(target_type == tss_ctrl_label) %>% 
+  mutate(intended_target = perturbation == gene)
+
+# get maximum absolute log-fold change
+max_lfc <- max(abs(tss_results$logFC), na.rm = TRUE)
+```
+
+```{r, fig.height=4, fig.width=6}
+# create volcano plot for TSS controls
+ggplot(tss_results, aes(x = logFC, y = -log10(pval_adj), color = intended_target)) +
+  geom_point(data = filter(tss_results, intended_target == FALSE), alpha = 1) + 
+  geom_point(data = filter(tss_results, intended_target == TRUE), alpha = 1) + 
+  geom_hline(yintercept = -log10(0.05), linetype = "dashed") + 
+  geom_vline(xintercept = 0, linetype = "dashed") +
+  scale_color_manual(values = c("TRUE" = "steelblue", "FALSE" = "gray42")) +
+  scale_x_continuous(limits = c(-max_lfc, max_lfc)) +
+  labs(title = "All TSS targeting controls", y = "-log10(FDR)", color = "Intended\ntarget") +
+  theme_bw()
+```
+
+### CRE - gene pairs
+The vast majority of guides are targeting putative enhancers. Differential expression results for
+these are extracted to assess whether they seem biologically reasonable. Most perturbations
+targeting enhancers are expected to decrease the expression of target genes. (Strong) enhancers are
+also expected to be enriched within proximity of their target gene.
+```{r, fig.height=3.5, fig.width=10}
+# remove any TSS controls and all pairs within 1kb to 1Mb of the TSS
+enh_results <- results %>% 
+  filter(target_type != tss_ctrl_label) %>%
+  filter(abs(dist_to_tss) > 1000, abs(dist_to_tss) <= 1e6)
+
+# get maximum absolute log-fold change
+max_lfc <- max(abs(enh_results$logFC), na.rm = TRUE)
+
+# make volcano plot with all pairs
+p1 <- ggplot(enh_results, aes(x = logFC, y = -log10(pval_adj), color = significant)) +
+  geom_point(alpha = 0.5) +
+  geom_hline(yintercept = -log10(0.05), linetype = "dashed") + 
+  geom_vline(xintercept = 0, linetype = "dashed") +
+  scale_color_manual(values = c("TRUE" = "firebrick3", "FALSE" = "gray42")) +
+  scale_x_continuous(limits = c(-max_lfc, max_lfc)) +
+  labs(title = "All tested enhancer-gene pairs (<=1Mb)", y = "-log10(FDR)") +
+  theme_bw()
+
+# plot -log10 p-value vs distance to TSS
+p2 <- ggplot(enh_results, aes(x = abs(dist_to_tss) / 1000, y = -log10(pval_adj),
+                              color = significant)) +
+  geom_point(data = filter(enh_results, significant == FALSE), alpha = 0.5) +
+  geom_point(data = filter(enh_results, significant == TRUE), alpha = 0.5) +
+  labs(title = "Significance vs. distance to TSS", x = "Distance to TSS (kb)", y = "-log10(FDR)") +
+  scale_color_manual(values = c("TRUE" = "firebrick3", "FALSE" = "gray42")) +
+  theme_bw()
+
+plot_grid(p1, p2, nrow = 1)
+```

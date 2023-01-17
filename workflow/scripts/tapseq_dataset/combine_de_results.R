@@ -1,8 +1,8 @@
 ## Combine main output files for both TAP-seq experiments into one file. This also filters out any
 ## duplicated control enhancer perturbations
 
-save.image("combine_de.rda")
-stop()
+# save.image("combine_de.rda")
+# stop()
 
 # required packages
 suppressPackageStartupMessages({
@@ -45,7 +45,7 @@ results <- mutate(results, pval_adj = p.adjust(pvalue, method = snakemake@params
 # remove out of region controls for MYC, ZFPM2 and HB* and only keep chr11 control for GATA1
 results <- results %>% 
   filter( (pert_chr == sample & gene_chr == sample) |
-            (gene == "GATA1" & perturbation == "GATA1" & sample == "chr11") )
+            (gene == "GATA1" & grepl(perturbation, pattern = "GATA1") & sample == "chr11") )
 
 # remove sample column and sort output
 results <- results %>% 

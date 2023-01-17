@@ -88,3 +88,34 @@ process_tapseq:
   remove_lanes:
     TAPseqChr8:  []
     TAPseqChr11: ["CATCGACC"]
+    
+# re-process HCR-FlowFISH data ---------------------------------------------------------------------
+
+# minimum guide count filters for each locus and replicate. first number is rep 1, second rep 2
+min_guide_counts:
+  LMO2: [10, 10]
+  NMU: [100, 100]
+  FADS1: [100, 50]
+  MEF2C: [20, 20]
+  GATA1: [50, 50]
+  FADS3: [200, 50]
+  ERP29: [30, 20]
+  HDAC6: [10, 10]
+  FEN1: [50, 50]
+  FADS2: [250, 100]
+  CD164: [50, 20]
+  MYC: [25, 50]
+  PVT1: [20, 10]
+  CAPRIN1: [12, 10]
+  HBG2: [100, 100]
+  CAT: [12, 10]
+  MYB: [100, 20]
+  HBG1: [100, 100]
+  HBS1L: [100, 50]
+  HBE1: [120, 50]
+
+# parameters for identifying enhancer-gene interactions
+score_enhancers:
+  mineffectsize: 0
+  minguides: 10
+  fdr: 0.05

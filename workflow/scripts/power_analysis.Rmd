@@ -33,9 +33,10 @@ results_cols <- cols(
   ci_low = col_double(),
   pvalue = col_double(),
   pval_adj = col_double(),
-  chr = col_character(),
+  pert_chr = col_character(),
   pert_start = col_double(),
   pert_end = col_double(),
+  gene_chr = col_character(),
   gene_tss = col_double(),
   gene_strand = col_character(),
   dist_to_tss = col_double(),
@@ -72,11 +73,11 @@ power <- power %>%
 p1 <- ggplot(power, aes(x = power_pct, y = power, color = effect_size)) +
   geom_hline(yintercept = 0.8, lty = "dashed") +
   geom_line(lwd = 1) +
-  labs(title = "Power all tested pairs", y = "Power", x = "Tested perturbation-gene pairs",
+  labs(title = "Power across tested pairs", y = "Power", x = "Tested perturbation-gene pairs",
        color = "Effect size") +
   scale_x_continuous(labels = scales::percent) +
   theme_bw() +
-  theme(text = element_text(size = 12))
+  theme(text = element_text(size = 14))
 
 # filter for pairs with >= 0.8 power
 power_80 <- filter(power, power >= 0.8)
@@ -87,7 +88,7 @@ p2 <- ggplot(power_80, aes(x = effect_size, fill = effect_size)) +
   scale_y_continuous(limits = c(0, nrow(results))) +
   labs(x = "Effect size", y = "Tested perturbation-gene pairs", title = "80% power") +
   theme_bw() +
-  theme(legend.position = "none", text = element_text(size = 12))
+  theme(legend.position = "none", text = element_text(size = 14))
 
 # print plots as one figure
 plot_grid(p2, p1, ncol = 2, rel_widths = c(0.33, 0.66))
@@ -127,5 +128,5 @@ ggplot(binned_power,
        linetype = "Pert. cells", color = "Effect size") +
   scale_x_log10() +
   theme_bw() +
-  theme(text = element_text(size = 12))
+  theme(text = element_text(size = 14))
 ```

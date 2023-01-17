@@ -11,10 +11,14 @@ include: "rules/create_encode_output.smk"
 include: "rules/gasperini_dataset.smk"
 include: "rules/tapseq_dataset.smk"
 include: "rules/flowfish_dataset.smk"
+include: "rules/hcrflowfish_dataset.smk"
 
 # perform all differential expression and power analyses to create main output files
 rule all:
   input:
+    de_tests = expand("results/{sample}/diff_expr_{method}_{strategy}.html", 
+      sample = ["Gasperini2019", "TAPseq", "TAPseqChr8", "TAPseqChr11"], method = "MAST",
+      strategy = "perCRE"),
     power_analysis = expand("results/{sample}/power_analysis_{sd}gStd_{method}_{strategy}.html",
       sample = ["Gasperini2019", "TAPseq", "TAPseqChr8", "TAPseqChr11"], sd = 0.13, method = "MAST",
       strategy = "perCRE")
