@@ -223,8 +223,7 @@ output <- output %>%
                                        strandPerturbationTarget),
          name = paste(measuredGeneSymbol, PerturbationTargetID, sep = "|"),
          Notes = NA_character_,
-         Reference = snakemake@params$reference,
-         CellType = snakemake@params$cell_type)
+         Reference = snakemake@params$reference)
 
 # rename columns containing simulated power
 colnames(output) <- sub("^power_effect_size_", "PowerAtEffectSize", colnames(output))
@@ -236,7 +235,7 @@ output <- output %>%
          endTSS, strandGene, EffectSize95ConfidenceIntervalLow = ci_low,
          EffectSize95ConfidenceIntervalHigh = ci_high, measuredGeneSymbol, measuredEnsemblID,
          guideSpacerSeq, guideSeq, Significant, pValue = pvalue, pValueAdjusted = pval_adj,
-         starts_with("PowerAtEffectSize"), ValidConnection, Notes, CellType, Reference,
+         starts_with("PowerAtEffectSize"), ValidConnection, Notes, Reference,
          distToTSS = dist_to_tss, avgGeneExpr = avg_expr, nPertCells = cells)
 
 # make sure output is sorted according to genomic coordinates

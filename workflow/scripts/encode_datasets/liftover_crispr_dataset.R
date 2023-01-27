@@ -1,8 +1,5 @@
 ## Liftover CRISPR enhancer screen datasets from hg19 to hg38
 
-# save.image("liftover.rda")
-# stop()
-
 # required packages
 suppressPackageStartupMessages({
   library(dplyr)
@@ -87,10 +84,13 @@ tss_hg38 <- data.frame(chrTSS = as.character(seqnames(tss_hg38)),
                        measuredGeneSymbol = names(tss_hg38),
                        stringsAsFactors = FALSE)
 
-# replace hg19 TSS coordinates in data with hg38 coordinates and rearrange columns for output
+# replace hg19 TSS coordinates in data with hg38 coordinates
 output <- dat %>% 
   select(-c(startTSS, endTSS)) %>% 
-  left_join(tss_hg38, by = c("measuredGeneSymbol", "chrTSS")) %>% 
+  left_join(tss_hg38, by = c("measuredGeneSymbol", "chrTSS"))
+
+# rearrange columns to original order for output
+output <- output %>% 
   select(all_of(dat_colnames)) %>% 
   arrange(chrom, chromStart, chromEnd, measuredGeneSymbol)
   

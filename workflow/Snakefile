@@ -10,7 +10,7 @@ include: "rules/additional_analyses.smk"
 include: "rules/create_encode_output.smk"
 include: "rules/gasperini_dataset.smk"
 include: "rules/tapseq_dataset.smk"
-include: "rules/flowfish_dataset.smk"
+include: "rules/fulco_dataset.smk"
 include: "rules/hcrflowfish_dataset.smk"
 
 # perform all differential expression and power analyses to create main output files
@@ -24,16 +24,16 @@ rule all:
       strategy = "perCRE")
 
 # create all output files for ENCODE
-rule encode:
+rule encode_files:
   input:
-    encode_files = expand("results/ENCODE/ENCODE_{sample}_{sd}gStd_MAST_perCRE.tsv.gz",
+    expand("results/ENCODE/ENCODE_{sample}_{sd}gStd_MAST_perCRE_GRCh38.tsv.gz",
       sample = ["Gasperini2019", "TAPseq"],  sd = 0.13),
-    gasperini = expand("results/ENCODE/EPCrisprBenchmark_Gasperini2019_{sd}gStd_{pwr}pwrAt{es}effect_{genome}.tsv.gz",
-      sd = 0.13, pwr = 0.8, es = 15, genome = ["hg19", "GRCh38"]),
-    tapseq = expand("results/ENCODE/EPCrisprBenchmark_TAPseq_{sd}gStd_{pwr}pwrAt{es}effect_GRCh38.tsv.gz",
-      sd = 0.13, pwr = 0.8, es = 15),
-    flowfish = expand("results/ENCODE/EPCrisprBenchmark_FlowFISH_K562_{genome}.tsv.gz",
-      genome = ["hg19", "GRCh38"])
+    expand("results/ENCODE/EPCrisprBenchmark/EPCrisprBenchmark_{sample}_{sd}gStd_{pwr}pwrAt{es}effect_GRCh38.tsv.gz",
+      sample = ["Gasperini2019", "TAPseq"], sd = 0.13, pwr = 0.8, es = 15),
+    "results/ENCODE/ENCODE_Fulco2019_GRCh38.tsv.gz",
+    "results/ENCODE/EPCrisprBenchmark/EPCrisprBenchmark_Fulco2019_GRCh38.tsv.gz",
+    "results/ENCODE/ENCODE_CombinedData_GRCh38.tsv.gz",
+    "results/ENCODE/EPCrisprBenchmark/EPCrisprBenchmark_CombinedData_GRCh38.tsv.gz"
 
 # auxillary rules, remove once done ----------------------------------------------------------------
 
@@ -42,8 +42,7 @@ rule all_de_tests:
   input:
     expand("results/{sample}/diff_expr/output_MAST_{pert_level}.tsv.gz",
       sample = ["Gasperini2019", "TAPseq", "TAPseqChr8", "TAPseqChr11"],
-      pert_level = ["perCRE"])
-#      pert_level = ["perCRE", "perGRNA"])
+      pert_level = ["perCRE", "perGRNA"])
       
 # perform all power simulations
 rule all_pwr_sims:
