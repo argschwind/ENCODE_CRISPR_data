@@ -1,7 +1,7 @@
 name: r_create_gasperini_input
 channels:
-  - bioconda
   - conda-forge
+  - bioconda
   - defaults
   - r
 dependencies:

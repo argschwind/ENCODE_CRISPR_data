@@ -1,7 +1,7 @@
 name: r_process_crispr_data
 channels:
-  - bioconda
   - conda-forge
+  - bioconda
   - defaults
   - r
 dependencies:

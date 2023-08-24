@@ -1,4 +1,4 @@
-## Reformat Engreitz lab Fulco et al., 2019 data into ENCODE CRISPR data file format
+## Reformat Nasser et al., 2021 data from the Engreitz lab into ENCODE CRISPR data file format
 
 # required packages
 library(dplyr)
@@ -6,8 +6,8 @@ library(readr)
 
 ## Load input data ---------------------------------------------------------------------------------
 
-# column types input Fulco data
-fulco_cols <- cols(
+# column types in input data
+nasser_cols <- cols(
   chrPerturbationTarget = col_character(),
   startPerturbationTarget = col_double(),
   endPerturbationTarget = col_double(),
@@ -30,8 +30,8 @@ fulco_cols <- cols(
   RNAReadoutMethod = col_character()
 )
 
-# load FlowFish input data
-dat <- read_tsv(snakemake@input$data, col_types = fulco_cols, progress = FALSE)
+# load Nasser2021 input data
+dat <- read_tsv(snakemake@input$data, col_types = nasser_cols, progress = FALSE)
 
 # column types input tss annotations
 tss_cols <- cols(

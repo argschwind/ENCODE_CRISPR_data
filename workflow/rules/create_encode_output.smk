@@ -87,12 +87,12 @@ rule create_ep_benchmarking_dataset:
 # create ensembl CRISPR dataset in both ENCODE format    
 rule create_ensemble_encode:
   input:
-    Fulco2019 = "results/ENCODE/ENCODE_Fulco2019_GRCh38.tsv.gz",
+    Nasser2021 = "results/ENCODE/ENCODE_Nasser2021_GRCh38.tsv.gz",
     Gasperini2019 = "results/ENCODE/EPCrisprBenchmark/ENCODE_Gasperini2019_0.13gStd_MAST_perCRE_0.8pwrAt15effect_GRCh38.tsv.gz",
     Schraivogel2020 = "results/ENCODE/EPCrisprBenchmark/ENCODE_TAPseq_0.13gStd_MAST_perCRE_0.8pwrAt15effect_GRCh38.tsv.gz"
   output: "results/ENCODE/ENCODE_CombinedData_GRCh38.tsv.gz"
   params:
-    effect_size = {"Fulco2019":"pctChange", "Gasperini2019":"logFC", "Schraivogel2020":"logFC"}
+    effect_size = {"Nasser2021":"pctChange", "Gasperini2019":"logFC", "Schraivogel2020":"logFC"}
   conda: "../envs/r_process_crispr_data.yml"
   script:
     "../scripts/encode_datasets/create_ensemble_dataset.R"
