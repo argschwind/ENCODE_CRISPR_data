@@ -1,5 +1,4 @@
-## Extract columns for EP benchmarking CRISPR data format from full ENCODE data and filter for
-## valid connections, distance to TSS and power.
+## Extract columns for EP benchmarking CRISPR data format from full ENCODE data
 
 # required packages
 suppressPackageStartupMessages({
@@ -61,8 +60,26 @@ if (is.null(snakemake@params$min_pct_change)) {
   dat$Regulated <- dat$Significant == TRUE & dat$EffectSize <= snakemake@params$min_pct_change
 }
 
-# add cell type column
-dat <- mutate(dat, CellType = snakemake@params$cell_type)
+# add cell type column either based on the specified cell type column or cell type id for all pairs
+if (!is.null(snakemake@params[["cell_type_col"]])) {
+  
+  if (!is.null(snakemake@params[["cell_type"]])) {
+    warning("Both 'cell_type_col' and 'cell_type' provided. Ignoring 'cell_type'", call. = FALSE)
+  }
+  
+  # add cell type information from cell type column specified via 'cell_type_col' parameter
+  dat <- mutate(dat, CellType = !! sym(snakemake@params[["cell_type_col"]]))
+  
+} else if (!is.null(snakemake@params[["cell_type"]])) {
+  
+  # add cell type id specified via 'cell_type' parameter
+  dat <- mutate(dat, CellType = snakemake@params[["cell_type"]])
+  
+} else {
+  stop("No cell type information found. Must be provided either as name of the column containing ",
+       "cell type id ('cell_type_col' snakemake parameter), or unique cell type id ('cell_type' ",
+       "snakemake parameter)", call. = FALSE)
+}
 
 # extract required columns for EP benchmarking data and sort according to coordinates
 output <- dat %>%

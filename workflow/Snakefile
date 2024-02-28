@@ -7,9 +7,12 @@ include: "rules/perform_diff_expr_tests.smk"
 include: "rules/perform_power_simulations.smk"
 include: "rules/create_input_and_output.smk"
 include: "rules/create_encode_output.smk"
+include: "rules/create_candidate_cres.smk"
 include: "rules/gasperini_dataset.smk"
 include: "rules/tapseq_dataset.smk"
 include: "rules/nasser_dataset.smk"
+include: "rules/hcrflowfish_dataset.smk"
+include: "rules/hct116_dataset.smk"
 include: "rules/additional_analyses.smk"  # optional analyses to estimate guide variability
 
 # perform all differential expression and power analyses to create main output files
@@ -29,10 +32,11 @@ rule encode_files:
       sample = ["Gasperini2019", "TAPseq"],  sd = 0.13),
     expand("results/ENCODE/EPCrisprBenchmark/EPCrisprBenchmark_{sample}_{sd}gStd_{pwr}pwrAt{es}effect_GRCh38.tsv.gz",
       sample = ["Gasperini2019", "TAPseq"], sd = 0.13, pwr = 0.8, es = 15),
-    "results/ENCODE/ENCODE_Nasser2021_GRCh38.tsv.gz",
-    "results/ENCODE/EPCrisprBenchmark/EPCrisprBenchmark_Nasser2021_GRCh38.tsv.gz",
+    "results/ENCODE/EPCrisprBenchmark/EPCrisprBenchmark_Nasser2021_K562_GRCh38.tsv.gz",
+    "results/ENCODE/EPCrisprBenchmark/EPCrisprBenchmark_Nasser2021_otherCellTypes_GRCh38.tsv.gz",
+    "results/ENCODE/EPCrisprBenchmark/EPCrisprBenchmark_HCRFlowFISH_perCRE_GRCh38.tsv.gz",
     "results/ENCODE/ENCODE_CombinedData_GRCh38.tsv.gz",
-    "results/ENCODE/EPCrisprBenchmark/EPCrisprBenchmark_CombinedData_GRCh38.tsv.gz"
+    "results/ENCODE/EPCrisprBenchmark/EPCrisprBenchmark_CombinedData_GRCh38.tsv.gz"    
 
 # auxillary rules, remove once done ----------------------------------------------------------------
 

@@ -5,10 +5,20 @@ download_urls:
   gencode.v26lift37: "http://ftp.ebi.ac.uk/pub/databases/gencode/Gencode_human/release_26/GRCh37_mapping/gencode.v26lift37.annotation.gtf.gz"
   gencode.v26: "http://ftp.ebi.ac.uk/pub/databases/gencode/Gencode_human/release_26/gencode.v26.annotation.gtf.gz"
   gencode.v29: "http://ftp.ebi.ac.uk/pub/databases/gencode/Gencode_human/release_29/gencode.v29.annotation.gtf.gz"
-  ENCFF030DCL: "https://www.encodeproject.org/files/ENCFF030DCL/@@download/ENCFF030DCL.bam"
   liftover_chain: "https://hgdownload.cse.ucsc.edu/goldenPath/hg19/liftOver/hg19ToHg38.over.chain.gz"
-  Nasser2021: "https://raw.githubusercontent.com/EngreitzLab/ABC-GWAS-Paper/main/comparePredictorsToCRISPRData/comparisonRuns/K562-only/experimentalData/experimentalData.K562-only.txt"
+  Nasser2021:
+    K562: "https://raw.githubusercontent.com/EngreitzLab/ABC-GWAS-Paper/main/comparePredictorsToCRISPRData/comparisonRuns/K562-only/experimentalData/experimentalData.K562-only.txt"
+    allCellTypes: "https://raw.githubusercontent.com/EngreitzLab/ABC-GWAS-Paper/main/comparePredictorsToCRISPRData/comparisonRuns/AllCellTypes-ABC_comparison/experimentalData/experimentalData.AllCellTypes.txt"
   RefSeq_tss: "https://raw.githubusercontent.com/broadinstitute/ABC-Enhancer-Gene-Prediction/master/reference/RefSeqCurated.170308.bed.CollapsedGeneBounds.TSS500bp.bed"
+
+# DNase-seq bam files for candidate CREs
+dnase_bam:
+  ENCFF030DCL:
+    url:  "https://www.encodeproject.org/files/ENCFF030DCL/@@download/ENCFF030DCL.bam"
+    chrs: "resources/hg19_chr_sizes"
+  ENCFF205FNC:
+    url:  "https://www.encodeproject.org/files/ENCFF205FNC/@@download/ENCFF205FNC.bam"
+    chrs: "resources/GRCh38_EBV.no_alt.chrom.sizes.tsv"
 
 # specify which samples should be split by chromosome when performing DE tests and power simulations
 split_by_chr:
@@ -89,6 +99,11 @@ process_tapseq:
   remove_lanes:
     TAPseqChr8:  []
     TAPseqChr11: ["CATCGACC"]
+    
+# re-format Nasser at al., 2021 CRISPR data --------------------------------------------------------
+Nasser2021:
+  subsets:
+    otherCellTypes: ["NCCIT", "PrimaryHepatocytes", "BJAB", "Jurkat", "THP1", "GM12878", "LNCAP"]
     
 # re-process HCR-FlowFISH data ---------------------------------------------------------------------
 
