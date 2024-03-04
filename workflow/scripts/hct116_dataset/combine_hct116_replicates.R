@@ -1,4 +1,4 @@
-## Download and pre-process HCT116 data
+## Combine and pre-process HCT116 enhancer-level FLowFISH pipeline results
 
 # save.image("hct116_dl.rda")
 # stop()

@@ -35,6 +35,7 @@ rule encode_files:
     "results/ENCODE/EPCrisprBenchmark/EPCrisprBenchmark_Nasser2021_K562_GRCh38.tsv.gz",
     "results/ENCODE/EPCrisprBenchmark/EPCrisprBenchmark_Nasser2021_otherCellTypes_GRCh38.tsv.gz",
     "results/ENCODE/EPCrisprBenchmark/EPCrisprBenchmark_HCRFlowFISH_perCRE_GRCh38.tsv.gz",
+    "results/ENCODE/EPCrisprBenchmark/EPCrisprBenchmark_HCT116_FlowFISH_0.8pwrAt25effect_GRCh38.tsv.gz"
     "results/ENCODE/ENCODE_CombinedData_GRCh38.tsv.gz",
     "results/ENCODE/EPCrisprBenchmark/EPCrisprBenchmark_CombinedData_GRCh38.tsv.gz"    
 
