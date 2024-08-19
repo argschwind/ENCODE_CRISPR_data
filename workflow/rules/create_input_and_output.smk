@@ -36,6 +36,8 @@ rule diff_expr_results:
   output:
     "results/{sample}/diff_expr_{method}_{strategy}.html"
   conda: "../envs/r_process_crispr_data.yml"
+  resources:
+    mem = "8G"
   script:
     "../scripts/diff_expr_results.Rmd"
     
@@ -46,5 +48,7 @@ rule power_analysis:
   output:
     "results/{sample}/power_analysis_{sd}gStd_{method}_{strategy}.html"
   conda: "../envs/r_process_crispr_data.yml"
+  resources:
+    mem = "8G"  
   script:
     "../scripts/power_analysis.Rmd"

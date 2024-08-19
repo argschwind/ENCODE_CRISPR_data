@@ -23,6 +23,8 @@ rule create_encode_dataset:
     padj_threshold = config["diff_expr"]["padj_threshold"],
     reference = lambda wildcards: config["metadata"][wildcards.sample]["reference"]
   conda: "../envs/r_process_crispr_data.yml"
+  resources:
+    mem = "8G"
   script:
     "../scripts/encode_datasets/create_encode_dataset.R"
     
@@ -54,6 +56,8 @@ rule liftover_crispr_dataset:
   wildcard_constraints:
     sample = "|".join(liftover_samples(config))
   conda: "../envs/r_process_crispr_data.yml"
+  resources:
+    mem = "8G"  
   script:
     "../scripts/encode_datasets/liftover_crispr_dataset.R"    
 

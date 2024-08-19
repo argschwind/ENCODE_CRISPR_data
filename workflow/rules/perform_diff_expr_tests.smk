@@ -33,7 +33,7 @@ rule perform_de_tests:
   conda: "../envs/r_process_crispr_data.yml"
   resources:
     mem = "24G",
-    time = "6:00:00"
+    runtime = "6h"
   script:
     "../scripts/differential_expression.R"
 
@@ -69,7 +69,7 @@ rule perform_de_tests_chr:
   conda: "../envs/r_process_crispr_data.yml"
   resources:
     mem = "24G",
-    time = "6:00:00"
+    runtime = "6h"
   script:
     "../scripts/differential_expression.R"
 

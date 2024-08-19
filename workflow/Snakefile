@@ -20,7 +20,7 @@ rule all:
   input:
     de_tests = expand("results/{sample}/diff_expr_{method}_{strategy}.html", 
       sample = ["Gasperini2019", "TAPseq", "TAPseqChr8", "TAPseqChr11"], method = "MAST",
-      strategy = "perCRE"),
+      strategy = ["perGRNA", "perCRE"]),
     power_analysis = expand("results/{sample}/power_analysis_{sd}gStd_{method}_{strategy}.html",
       sample = ["Gasperini2019", "TAPseq", "TAPseqChr8", "TAPseqChr11"], sd = 0.13, method = "MAST",
       strategy = "perCRE")
@@ -35,9 +35,9 @@ rule encode_files:
     "results/ENCODE/EPCrisprBenchmark/EPCrisprBenchmark_Nasser2021_K562_GRCh38.tsv.gz",
     "results/ENCODE/EPCrisprBenchmark/EPCrisprBenchmark_Nasser2021_otherCellTypes_GRCh38.tsv.gz",
     "results/ENCODE/EPCrisprBenchmark/EPCrisprBenchmark_HCRFlowFISH_perCRE_GRCh38.tsv.gz",
-    "results/ENCODE/EPCrisprBenchmark/EPCrisprBenchmark_HCT116_FlowFISH_0.8pwrAt25effect_GRCh38.tsv.gz"
+    "results/ENCODE/EPCrisprBenchmark/EPCrisprBenchmark_HCT116_FlowFISH_GRCh38.tsv.gz",
     "results/ENCODE/ENCODE_CombinedData_GRCh38.tsv.gz",
-    "results/ENCODE/EPCrisprBenchmark/EPCrisprBenchmark_CombinedData_GRCh38.tsv.gz"    
+    "results/ENCODE/EPCrisprBenchmark/EPCrisprBenchmark_CombinedData_GRCh38.tsv.gz"  
 
 # auxillary rules, remove once done ----------------------------------------------------------------
 

@@ -65,7 +65,7 @@ data <- data %>%
   mutate(enh_pct_change = -1 * (1 - mean),
          guide_pct_change = -1 * (1 - guide_effect))
 
-# add unique identified for each tested enhancer - gene pair
+# add unique identifier for each tested enhancer - gene pair
 data <- unite(data, col = "pair_uid", gene, chr, start, end, remove = FALSE)
 
 # count and plot the number of guides per enhancer - gene pair

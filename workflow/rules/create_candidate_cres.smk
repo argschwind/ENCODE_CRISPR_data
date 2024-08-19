@@ -57,6 +57,8 @@ rule create_candidate_cres:
     top_n = 150000,
     peak_extend = 250
   conda: "../envs/r_create_gasperini_input.yml"
+  resources:
+    mem = "8G"
   shell:
     "bedtools sort -i {input.peaks} -faidx {input.chrs} | "
     "bedtools merge -i stdin -c 11 -o max | "

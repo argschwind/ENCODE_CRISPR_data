@@ -53,11 +53,13 @@ if (effect_size != "pctChange") {
   dat <- mutate(dat, EffectSize = logFC_to_pctChange(EffectSize, base = base))
 }
 
-# add 'Regulated' column, labeling detected enhancer-gene pairs
-if (is.null(snakemake@params$min_pct_change)) {
-  dat$Regulated <- dat$Significant == TRUE & dat$EffectSize < 0
-} else {
-  dat$Regulated <- dat$Significant == TRUE & dat$EffectSize <= snakemake@params$min_pct_change
+# add 'Regulated' column, labeling detected enhancer-gene pairs (if required)
+if (!"Regulated" %in% colnames(dat)) {
+  if (is.null(snakemake@params$min_pct_change)) {
+    dat$Regulated <- dat$Significant == TRUE & dat$EffectSize < 0
+  } else {
+    dat$Regulated <- dat$Significant == TRUE & dat$EffectSize <= snakemake@params$min_pct_change
+  }
 }
 
 # add cell type column either based on the specified cell type column or cell type id for all pairs

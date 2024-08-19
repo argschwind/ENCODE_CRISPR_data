@@ -17,6 +17,8 @@ rule create_tapseq_guide_targets:
     downstream_seq = "GTTTAAGAGCTATGCTGGAAACAGCATAGCAAGTT"
   threads: 10
   conda: "../envs/r_create_tapseq_input.yml"
+  resources:
+    mem = "32G"
   script:
     "../scripts/tapseq_dataset/map_tapseq_guides.R"
   
