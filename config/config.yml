@@ -100,6 +100,14 @@ process_tapseq:
     TAPseqChr8:  []
     TAPseqChr11: ["CATCGACC"]
     
+    
+# parameters for trans-acting effects analyses
+trans_effects:
+  sample_genes:
+    Gasperini2019: 100
+  n_batches:
+    Gasperini2019: 10
+    
 # re-format Nasser at al., 2021 CRISPR data --------------------------------------------------------
 Nasser2021:
   subsets:

@@ -14,6 +14,7 @@ include: "rules/nasser_dataset.smk"
 include: "rules/hcrflowfish_dataset.smk"
 include: "rules/hct116_dataset.smk"
 include: "rules/additional_analyses.smk"  # optional analyses to estimate guide variability
+include: "rules/indirect_effects_analyses.smk"
 
 # perform all differential expression and power analyses to create main output files
 rule all:
@@ -38,8 +39,16 @@ rule encode_files:
     "results/ENCODE/EPCrisprBenchmark/EPCrisprBenchmark_HCT116_FlowFISH_GRCh38.tsv.gz",
     "results/ENCODE/ENCODE_CombinedData_GRCh38.tsv.gz",
     "results/ENCODE/EPCrisprBenchmark/EPCrisprBenchmark_CombinedData_GRCh38.tsv.gz"  
+    
+# perform estmation of indirect effects analysis
+rule indirect_effects:
+  input:
+    "results/Gasperini2019/trans_effects/indirect_effects_0.13gStd_MAST_perCRE_hg19.250kb_filter.html",
+    "results/Gasperini2019/trans_effects/EPCrisprBenchmark_Gasperini2019_0.13gStd_0.8pwrAt15effect_GRCh38.250kb_hardFilter.tsv.gz",
+    "results/Gasperini2019/trans_effects/EPCrisprBenchmark_Gasperini2019_0.13gStd_0.8pwrAt15effect_GRCh38.250kb_flipFilter.tsv.gz",
+    "results/Gasperini2019/trans_effects/EPCrisprBenchmark_Gasperini2019_0.13gStd_0.8pwrAt15effect_GRCh38.250kb_propFilter.tsv.gz"
 
-# auxillary rules, remove once done ----------------------------------------------------------------
+# auxillary rules to run separate steps ------------------------------------------------------------
 
 # perform all DE tests
 rule all_de_tests:
