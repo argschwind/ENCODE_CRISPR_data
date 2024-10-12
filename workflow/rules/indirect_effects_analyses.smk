@@ -68,4 +68,15 @@ rule filter_indirect_effects_gasperini:
     prop_filt = "results/Gasperini2019/trans_effects/EPCrisprBenchmark_Gasperini2019_0.13gStd_0.8pwrAt15effect_GRCh38.{dist}kb_propFilter.tsv.gz"
   conda: "../envs/r_process_crispr_data.yml"
   script:
+    "../scripts/indirect_effects/filter_indirect_effects.R"
+    
+# filter CRISPR dataset for potential indirect effects
+rule filter_indirect_effects_combined:
+  input: "results/ENCODE/EPCrisprBenchmark/EPCrisprBenchmark_CombinedData_GRCh38.tsv.gz"
+  output: 
+    filt = "results/Gasperini2019/trans_effects/combined_data/EPCrisprBenchmark_CombinedData_GRCh38.{dist}kb_hardFilter.tsv.gz",
+    flip = "results/Gasperini2019/trans_effects/combined_data/EPCrisprBenchmark_CombinedData_GRCh38.{dist}kb_flipFilter.tsv.gz",
+    prop_filt = "results/Gasperini2019/trans_effects/combined_data/EPCrisprBenchmark_CombinedData_GRCh38.{dist}kb_propFilter.tsv.gz"
+  conda: "../envs/r_process_crispr_data.yml"
+  script:
     "../scripts/indirect_effects/filter_indirect_effects.R"  

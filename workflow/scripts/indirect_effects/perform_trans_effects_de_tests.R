@@ -15,8 +15,8 @@ suppressPackageStartupMessages({
   library(readr)
   library(BiocParallel)
   library(SingleCellExperiment)
-  source(file.path(snakemake@scriptdir, "R_functions/differential_expression_fun.R"))
-  source(file.path(snakemake@scriptdir, "R_functions/trans_effects.R")) 
+  source(file.path(snakemake@scriptdir, "../R_functions/differential_expression_fun.R"))
+  source(file.path(snakemake@scriptdir, "trans_differential_expression_fun.R"))
 })
 
 # parse method wildcard and attach required packages

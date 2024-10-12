@@ -2,15 +2,14 @@
 
 # required packages
 suppressPackageStartupMessages({
-  library(tidyverse)
+  library(readr)
+  library(dplyr)
 })
 
 # distance threshold for filtering
 dist_threshold <- as.numeric(snakemake@wildcards$dist) * 1000
 
-# load file containing CRISPR data in EPbenchmarking format
-crispr_file <- "/oak/stanford/groups/engreitz/Projects/Benchmarking/Revisions/CRISPR_data/EPCrisprBenchmark_Gasperini2019_0.13gStd_0.8pwrAt15effect_GRCh38.tsv.gz"
-crispr <- read_tsv(crispr_file, show_col_types = FALSE)
+crispr <- read_tsv(snakemake@input[[1]], show_col_types = FALSE)
 
 # extract original column names for later formatting
 crispr_cols <- colnames(crispr)
