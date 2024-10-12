@@ -56,11 +56,13 @@ rule perform_power_simulations:
 # compute power
 rule compute_power:
   input:
-    expand("results/{{sample}}/power_sim/rep{rep}_output_{{effect}}_{{sd}}gStd_{{method}}_{{strategy}}.tsv.gz",
+    real = "results/{sample}/diff_expr/output_{method}_{strategy}.tsv.gz",
+    sim = expand("results/{{sample}}/power_sim/rep{rep}_output_{{effect}}_{{sd}}gStd_{{method}}_{{strategy}}.tsv.gz",
       rep = range(1, config["power_simulations"]["rep"] + 1))
   output:
     "results/{sample}/power_sim/power_{effect}_{sd}gStd_{method}_{strategy}.tsv.gz"
   params:
+    multi_test_correction = config["power_simulations"]["multi_test_correction"],
     p_adj_method = config["diff_expr"]["padj_method"],
     pval_threshold = config["diff_expr"]["padj_threshold"]
   conda: "../envs/r_process_crispr_data.yml"
@@ -111,7 +113,8 @@ rule perform_power_simulations_chr:
 # compute power
 rule compute_power_chrs:
   input:
-    expand("results/{{sample}}/power_sim/{chr}/{chr}_rep{rep}_output_{{effect}}_{{sd}}gStd_{{method}}_{{strategy}}.tsv.gz",
+    real = "results/{sample}/diff_expr/output_{method}_{strategy}.tsv.gz",
+    sim = expand("results/{{sample}}/power_sim/{chr}/{chr}_rep{rep}_output_{{effect}}_{{sd}}gStd_{{method}}_{{strategy}}.tsv.gz",
       chr = ["chr" + str(i)  for i in [*range(1, 23), "X"]],
       rep = range(1, config["power_simulations"]["rep"] + 1))
   output:
@@ -119,6 +122,7 @@ rule compute_power_chrs:
   wildcard_constraints:
     sample = split_samples_wildcards
   params:
+    multi_test_correction = config["power_simulations"]["multi_test_correction"],
     p_adj_method = config["diff_expr"]["padj_method"],
     pval_threshold = config["diff_expr"]["padj_threshold"]
   conda: "../envs/r_process_crispr_data.yml"

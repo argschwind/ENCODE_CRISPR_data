@@ -117,6 +117,7 @@ rule combine_tapseq_de_results:
 # compute power across both TAP-seq experiments from simulation results
 rule compute_tapseq_power:
   input:
+    real = "results/TAPseq/diff_expr/output_{method}_{strategy}.tsv.gz",
     chr8 = expand("results/TAPseqChr8/power_sim/rep{rep}_output_{{effect}}_{{sd}}gStd_{{method}}_{{strategy}}.tsv.gz",
       rep = range(1, config["power_simulations"]["rep"] + 1)),
     chr11 = expand("results/TAPseqChr11/power_sim/rep{rep}_output_{{effect}}_{{sd}}gStd_{{method}}_{{strategy}}.tsv.gz",
@@ -124,8 +125,11 @@ rule compute_tapseq_power:
   output:
     "results/TAPseq/power_sim/power_{effect}_{sd}gStd_{method}_{strategy}.tsv.gz"
   params:
+    multi_test_correction = config["power_simulations"]["multi_test_correction"],
     p_adj_method = config["diff_expr"]["padj_method"],
     pval_threshold = config["diff_expr"]["padj_threshold"]
   conda: "../envs/r_process_crispr_data.yml"
+  resources:
+    mem = "8G"
   script:
     "../scripts/tapseq_dataset/compute_tapseq_power.R"

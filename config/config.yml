@@ -66,6 +66,7 @@ power_simulations:
     TAPseqChr8:  "real"
     TAPseqChr11: "real"
   rep: 20
+  multi_test_correction: "real"  # 'sim' or 'real'
   threads: 1
 
 # parameters to create output in ENCODE and EP benchmarking format
@@ -99,7 +100,6 @@ process_tapseq:
   remove_lanes:
     TAPseqChr8:  []
     TAPseqChr11: ["CATCGACC"]
-    
     
 # parameters for trans-acting effects analyses
 trans_effects:
