@@ -56,6 +56,8 @@ rule plot_indirect_effects:
     encode_results = "results/ENCODE/ENCODE_{sample}_{sd}gStd_MAST_perCRE_{genome}.tsv.gz"
   output: "results/{sample}/trans_effects/indirect_effects_{sd}gStd_MAST_perCRE_{genome}.{dist}kb_filter.html"
   conda: "../envs/r_process_crispr_data.yml"
+  resources:
+    mem = "24G"
   script:
     "../scripts/indirect_effects/plot_indirect_effects.Rmd"  
   

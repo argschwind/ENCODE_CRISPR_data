@@ -66,7 +66,7 @@ power_simulations:
     TAPseqChr8:  "real"
     TAPseqChr11: "real"
   rep: 20
-  multi_test_correction: "real"  # 'sim' or 'real'
+  multi_test_correction: "sim"  # 'sim' or 'real'
   threads: 1
 
 # parameters to create output in ENCODE and EP benchmarking format

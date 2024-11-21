@@ -27,6 +27,9 @@ proportion of direct cis effects from main differential expression results.
 # load trans and main cis effect results
 trans_results <- read_tsv(snakemake@input$trans_results, show_col_types = FALSE)
 cis_results <- read_tsv(snakemake@input$cis_results, show_col_types = FALSE)
+
+# load processed ENCODE format results including filters
+encode_results <- read_tsv(snakemake@input$encode_results, show_col_types = FALSE)
 ```
 
 ## Filter data
@@ -36,9 +39,6 @@ the same filter is applied in addition to removing any E-G pairs where the pertu
 the gene body of their target genes. These filters consistent with all other ENCODE distal
 regulation analyses.
 ```{r}
-# load processed ENCODE format results including filters
-encode_results <- read_tsv(snakemake@input$encode_results, show_col_types = FALSE)
-
 # get gene symbol for every gene id from processed ENCODE data
 genes <- encode_results %>%
   select(gene = measuredEnsemblID, gene_symbol = measuredGeneSymbol) %>% 
@@ -129,4 +129,26 @@ ggplot(cis_pos_ratio, aes(x = mean_dist, y = positive_ratio, color = Type)) +
        title = paste(snakemake@wildcards$sample, "cis vs. trans positive ratio")) +
   scale_color_manual(values = c("black", "dodgerblue3")) +
   theme_bw()
+```
+
+## Compare gene expression distributions
+Compare expression distributions between genes in cis- and trans-acting pairs.
+```{r, fig.width=4, fig.height=4.5}
+# get expression for genes in cis- and trans-pairs
+trans_filt_expr <- select(trans_results_filt, gene, avg_expr)
+cis_filt_expr <- select(cis_results_filt, gene, avg_expr)
+expr <- bind_rows(trans = trans_filt_expr, cis = cis_filt_expr, .id = "type")
+
+# only retain unique genes in both trans and cis gene lists
+expr <- distinct(expr)
+
+# plot expression distributions between genes in cis- and trans-pairs
+ggplot(expr, aes(x = type, y = avg_expr, fill = type)) +
+  geom_violin() +
+  geom_boxplot(width = 0.25) +
+  labs(title = "Gene expression cis vs. trans genes", y = "Avg. UMI per cell", x = "Analysis") +
+  scale_fill_manual(values = c(cis = "steelblue", trans = "goldenrod")) +
+  scale_y_log10() +
+  theme_bw() +
+  theme(legend.position = "none")
 ```
