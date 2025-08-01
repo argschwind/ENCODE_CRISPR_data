@@ -26,8 +26,8 @@ rule fit_negbinom_distr:
   log: "results/{sample}/logs/power_sim/fit_negbinom_distr.log"
   conda: "../envs/r_process_crispr_data.yml"
   resources:
-    mem = "32G",
-    time = "5:00:00"
+    mem = "64G",
+    runtime = "6h"
   script:
     "../scripts/fit_negbinom_distr.R"
 
@@ -48,19 +48,21 @@ rule perform_power_simulations:
   threads: config["power_simulations"]["threads"]
   conda: "../envs/r_process_crispr_data.yml"
   resources:
-    mem = "24G",
-    time = "24:00:00"
+    mem = "48G",
+    runtime = "24h"
   script:
    "../scripts/power_simulations.R"
 
 # compute power
 rule compute_power:
   input:
-    expand("results/{{sample}}/power_sim/rep{rep}_output_{{effect}}_{{sd}}gStd_{{method}}_{{strategy}}.tsv.gz",
+    real = "results/{sample}/diff_expr/output_{method}_{strategy}.tsv.gz",
+    sim = expand("results/{{sample}}/power_sim/rep{rep}_output_{{effect}}_{{sd}}gStd_{{method}}_{{strategy}}.tsv.gz",
       rep = range(1, config["power_simulations"]["rep"] + 1))
   output:
     "results/{sample}/power_sim/power_{effect}_{sd}gStd_{method}_{strategy}.tsv.gz"
   params:
+    multi_test_correction = config["power_simulations"]["multi_test_correction"],
     p_adj_method = config["diff_expr"]["padj_method"],
     pval_threshold = config["diff_expr"]["padj_threshold"]
   conda: "../envs/r_process_crispr_data.yml"
@@ -82,7 +84,7 @@ rule fit_negbinom_distr_chr:
   conda: "../envs/r_process_crispr_data.yml"
   resources:
     mem = "32G",
-    time = "5:00:00"
+    runtime = "5h"
   script:
     "../scripts/fit_negbinom_distr.R"
 
@@ -93,25 +95,26 @@ rule perform_power_simulations_chr:
     temp("results/{sample}/power_sim/{chr}/{chr}_rep{rep}_output_{effect}_{sd}gStd_{method}_{strategy}.tsv.gz")
   params:
     min_cells = lambda wildcards: config["diff_expr"]["min_cells"][wildcards.strategy],
-    max_dist = config["diff_expr"]["max_dist"],
+    max_dist = lambda wildcards: config["diff_expr"]["max_dist"][wildcards.sample],
     formula = config["diff_expr"]["formula"],
-    n_ctrl = config["diff_expr"]["n_ctrl"],
-    norm = config["power_simulations"]["norm"],
-    cell_batches = None,
+    n_ctrl = lambda wildcards: config["diff_expr"]["n_ctrl"][wildcards.sample],
+    norm = lambda wildcards: config["power_simulations"]["norm"][wildcards.sample],
+    cell_batches = lambda wildcards: config["diff_expr"]["cell_batches"][wildcards.sample],
     genes_iter = False
   log: "results/{sample}/logs/power_sim/{chr}/power_sim_{chr}_rep{rep}_{effect}_{sd}gStd_{method}_{strategy}.log.gz"
   threads: config["power_simulations"]["threads"]
   conda: "../envs/r_process_crispr_data.yml"
   resources:
-    mem = "24G",
-    time = "24:00:00"
+    mem = "96G",
+    runtime = "24h"
   script:
    "../scripts/power_simulations.R"
 
 # compute power
 rule compute_power_chrs:
   input:
-    expand("results/{{sample}}/power_sim/{chr}/{chr}_rep{rep}_output_{{effect}}_{{sd}}gStd_{{method}}_{{strategy}}.tsv.gz",
+    real = "results/{sample}/diff_expr/output_{method}_{strategy}.tsv.gz",
+    sim = expand("results/{{sample}}/power_sim/{chr}/{chr}_rep{rep}_output_{{effect}}_{{sd}}gStd_{{method}}_{{strategy}}.tsv.gz",
       chr = ["chr" + str(i)  for i in [*range(1, 23), "X"]],
       rep = range(1, config["power_simulations"]["rep"] + 1))
   output:
@@ -119,6 +122,7 @@ rule compute_power_chrs:
   wildcard_constraints:
     sample = split_samples_wildcards
   params:
+    multi_test_correction = config["power_simulations"]["multi_test_correction"],
     p_adj_method = config["diff_expr"]["padj_method"],
     pval_threshold = config["diff_expr"]["padj_threshold"]
   conda: "../envs/r_process_crispr_data.yml"

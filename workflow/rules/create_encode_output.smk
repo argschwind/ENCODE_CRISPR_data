@@ -23,6 +23,8 @@ rule create_encode_dataset:
     padj_threshold = config["diff_expr"]["padj_threshold"],
     reference = lambda wildcards: config["metadata"][wildcards.sample]["reference"]
   conda: "../envs/r_process_crispr_data.yml"
+  resources:
+    mem = "8G"
   script:
     "../scripts/encode_datasets/create_encode_dataset.R"
     
@@ -54,6 +56,8 @@ rule liftover_crispr_dataset:
   wildcard_constraints:
     sample = "|".join(liftover_samples(config))
   conda: "../envs/r_process_crispr_data.yml"
+  resources:
+    mem = "8G"  
   script:
     "../scripts/encode_datasets/liftover_crispr_dataset.R"    
 
@@ -87,7 +91,7 @@ rule create_ep_benchmarking_dataset:
 # create ensembl CRISPR dataset in both ENCODE format    
 rule create_ensemble_encode:
   input:
-    Nasser2021 = "results/ENCODE/ENCODE_Nasser2021_GRCh38.tsv.gz",
+    Nasser2021 = "results/ENCODE/ENCODE_Nasser2021_K562_GRCh38.tsv.gz",
     Gasperini2019 = "results/ENCODE/EPCrisprBenchmark/ENCODE_Gasperini2019_0.13gStd_MAST_perCRE_0.8pwrAt15effect_GRCh38.tsv.gz",
     Schraivogel2020 = "results/ENCODE/EPCrisprBenchmark/ENCODE_TAPseq_0.13gStd_MAST_perCRE_0.8pwrAt15effect_GRCh38.tsv.gz"
   output: "results/ENCODE/ENCODE_CombinedData_GRCh38.tsv.gz"
@@ -98,7 +102,7 @@ rule create_ensemble_encode:
     "../scripts/encode_datasets/create_ensemble_dataset.R"
 
 # convert ensembl CRISPR dataset from ENCODE to EPBenchmarking format file  
-rule create_ensemble_epbenchmarking:
+rule create_ensemble_ep_benchmarking_dataset:
   input: "results/ENCODE/ENCODE_CombinedData_GRCh38.tsv.gz"
   output: "results/ENCODE/EPCrisprBenchmark/EPCrisprBenchmark_CombinedData_GRCh38.tsv.gz"
   params:

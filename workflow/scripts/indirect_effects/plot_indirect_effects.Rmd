@@ -1,0 +1,154 @@
+---
+title: "Plot proportion of indirect effects in CRISPR data"
+author: "Andreas Gschwind"
+date: "`r format(Sys.time(), '%B %d, %Y')`"
+output: 
+  html_document:
+    toc: true
+    toc_float: true
+    code_folding: hide
+---
+
+## Goal
+Calculate indirect effects positive ratio and compare to cis-effect positive ratio as a function of
+distance to TSS.
+
+```{r requiredPackages, warning=FALSE, message=FALSE}
+library(tidyverse)
+# save.image("indirect_effects.rda")
+# stop()
+```
+
+## Used data
+Results from differential expression tests for trans-acting effects are used to estimate the
+proportion of indirect effects in CRISPR data. Proportion of indirect effects is compared to
+proportion of direct cis effects from main differential expression results.
+```{r}
+# load trans and main cis effect results
+trans_results <- read_tsv(snakemake@input$trans_results, show_col_types = FALSE)
+cis_results <- read_tsv(snakemake@input$cis_results, show_col_types = FALSE)
+
+# load processed ENCODE format results including filters
+encode_results <- read_tsv(snakemake@input$encode_results, show_col_types = FALSE)
+```
+
+## Filter data
+Filter trans and cis effects based on ValidConnection in ENCODE format data. For trans effects, any
+perturbations that are TSS controls or overlap potential promoters are removed. For cis effects,
+the same filter is applied in addition to removing any E-G pairs where the perturbation is within
+the gene body of their target genes. These filters consistent with all other ENCODE distal
+regulation analyses.
+```{r}
+# get gene symbol for every gene id from processed ENCODE data
+genes <- encode_results %>%
+  select(gene = measuredEnsemblID, gene_symbol = measuredGeneSymbol) %>% 
+  distinct()
+
+# add gene symbols to cis results 
+cis_results <- left_join(cis_results, genes, by = "gene")
+
+# add ValidConnection column to cis results
+cis_results <- cis_results %>% 
+  mutate(name = paste0(gene_symbol, "|", pert_chr, ":", pert_start, "-", pert_end, ":.")) %>% 
+  left_join(distinct(select(encode_results, name, ValidConnection)), by = "name")
+```
+
+```{r}
+# get valid enhancers only
+enh_filter <- c("overlaps potential promoter", "TSS targeting guide(s)")
+valid_enh <- encode_results %>% 
+  filter(!ValidConnection %in% enh_filter) %>% 
+  pull(PerturbationTargetID)
+
+# add ValidConnection column to trans-results
+trans_results <- trans_results %>% 
+  mutate(pert_id = paste0(pert_chr, ":", pert_start, "-", pert_end, ":.")) %>% 
+  mutate(ValidConnection = if_else(pert_id %in% valid_enh, true = "TRUE", false = "Invalid enhancer"))
+```
+
+```{r}
+# filter cis and trans results based on ValidConnection
+cis_results_filt <- filter(cis_results, ValidConnection == "TRUE")
+trans_results_filt <- filter(trans_results, ValidConnection == "TRUE")
+```
+
+## Calculate positive ratios
+Calculate proportion of positives for both trans effects and cis effects. For the latter, the
+proportion of positives is calculates as a function of distance to TSS.
+
+Bin cis results into 50 bins based on distance to TSS and compute proportion of positives for each
+bin:
+```{r}
+# add significance and regulated columns to cis results
+cis_results_filt <- cis_results_filt %>% 
+  mutate(significant = pval_adj < 0.05,
+         regulated = significant & logFC < 0) %>% 
+  filter(!is.na(regulated))
+
+# bin cis pairs by distance
+cis_results_filt <- cis_results_filt %>% 
+  mutate(abs_dist = abs(dist_to_tss),
+         dist_bin = cut(abs_dist, breaks = 50))
+
+# calculate positive ratios and mean distance per distance bin
+cis_pos_ratio <- cis_results_filt %>% 
+  group_by(dist_bin) %>% 
+  summarize(positive_ratio = mean(regulated),
+            mean_dist = mean(abs_dist)) %>% 
+  mutate(Type = "Cis-interactions")
+```
+
+Calculate proportion of positives for trans effects regardless of distance (all are on other
+chromosomes than the perturbation).
+```{r}
+# calculate trans-effects positive ratio
+trans_pos_ratio <- mean(trans_results_filt$regulated, na.rm = TRUE)
+
+# create mock table
+trans_pos_ratio <- tibble(mean_dist = c(0, 2e6),
+       positive_ratio = trans_pos_ratio,
+       Type = "Trans-interactions")
+```
+
+## Plot cis vs trans positive ratios
+Plot the proportion of positives for cis effects as a function of distance to TSS. Add a horizontal
+line to indicate the expected proportion of indirect effects estimated from testing for trans
+effects. The red line indicates where the proportion of cis effects starts to be equal to the
+expected proportion of indirect effects. 
+```{r, fig.height=3.5, fig.width=7}
+# manually inferred distance to TSS threshold where proportion of indirect effects is same as
+# proportion of effects in cis
+dist_threshold <- as.numeric(snakemake@wildcards$dist) * 1000
+
+# plot proportion of positives as function of distance
+ggplot(cis_pos_ratio, aes(x = mean_dist, y = positive_ratio, color = Type)) +
+  geom_point() +
+  geom_line(data = trans_pos_ratio) +
+  geom_vline(xintercept = dist_threshold, color = "firebrick") +
+  labs(x = "Distance to TSS (0-2Mb, 50 bins)", y = "Proportion positives",
+       title = paste(snakemake@wildcards$sample, "cis vs. trans positive ratio")) +
+  scale_color_manual(values = c("black", "dodgerblue3")) +
+  theme_bw()
+```
+
+## Compare gene expression distributions
+Compare expression distributions between genes in cis- and trans-acting pairs.
+```{r, fig.width=4, fig.height=4.5}
+# get expression for genes in cis- and trans-pairs
+trans_filt_expr <- select(trans_results_filt, gene, avg_expr)
+cis_filt_expr <- select(cis_results_filt, gene, avg_expr)
+expr <- bind_rows(trans = trans_filt_expr, cis = cis_filt_expr, .id = "type")
+
+# only retain unique genes in both trans and cis gene lists
+expr <- distinct(expr)
+
+# plot expression distributions between genes in cis- and trans-pairs
+ggplot(expr, aes(x = type, y = avg_expr, fill = type)) +
+  geom_violin() +
+  geom_boxplot(width = 0.25) +
+  labs(title = "Gene expression cis vs. trans genes", y = "Avg. UMI per cell", x = "Analysis") +
+  scale_fill_manual(values = c(cis = "steelblue", trans = "goldenrod")) +
+  scale_y_log10() +
+  theme_bw() +
+  theme(legend.position = "none")
+```

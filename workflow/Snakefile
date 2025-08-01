@@ -7,17 +7,21 @@ include: "rules/perform_diff_expr_tests.smk"
 include: "rules/perform_power_simulations.smk"
 include: "rules/create_input_and_output.smk"
 include: "rules/create_encode_output.smk"
+include: "rules/create_candidate_cres.smk"
 include: "rules/gasperini_dataset.smk"
 include: "rules/tapseq_dataset.smk"
 include: "rules/nasser_dataset.smk"
+include: "rules/hcrflowfish_dataset.smk"
+include: "rules/hct116_dataset.smk"
 include: "rules/additional_analyses.smk"  # optional analyses to estimate guide variability
+include: "rules/indirect_effects_analyses.smk"
 
 # perform all differential expression and power analyses to create main output files
 rule all:
   input:
     de_tests = expand("results/{sample}/diff_expr_{method}_{strategy}.html", 
       sample = ["Gasperini2019", "TAPseq", "TAPseqChr8", "TAPseqChr11"], method = "MAST",
-      strategy = "perCRE"),
+      strategy = ["perGRNA", "perCRE"]),
     power_analysis = expand("results/{sample}/power_analysis_{sd}gStd_{method}_{strategy}.html",
       sample = ["Gasperini2019", "TAPseq", "TAPseqChr8", "TAPseqChr11"], sd = 0.13, method = "MAST",
       strategy = "perCRE")
@@ -29,12 +33,27 @@ rule encode_files:
       sample = ["Gasperini2019", "TAPseq"],  sd = 0.13),
     expand("results/ENCODE/EPCrisprBenchmark/EPCrisprBenchmark_{sample}_{sd}gStd_{pwr}pwrAt{es}effect_GRCh38.tsv.gz",
       sample = ["Gasperini2019", "TAPseq"], sd = 0.13, pwr = 0.8, es = 15),
-    "results/ENCODE/ENCODE_Nasser2021_GRCh38.tsv.gz",
-    "results/ENCODE/EPCrisprBenchmark/EPCrisprBenchmark_Nasser2021_GRCh38.tsv.gz",
+    "results/ENCODE/EPCrisprBenchmark/EPCrisprBenchmark_Nasser2021_K562_GRCh38.tsv.gz",
+    "results/ENCODE/EPCrisprBenchmark/EPCrisprBenchmark_Nasser2021_otherCellTypes_GRCh38.tsv.gz",
+    "results/ENCODE/EPCrisprBenchmark/EPCrisprBenchmark_HCRFlowFISH_perCRE_GRCh38.tsv.gz",
+    "results/ENCODE/EPCrisprBenchmark/EPCrisprBenchmark_HCT116_FlowFISH_GRCh38.tsv.gz",
     "results/ENCODE/ENCODE_CombinedData_GRCh38.tsv.gz",
-    "results/ENCODE/EPCrisprBenchmark/EPCrisprBenchmark_CombinedData_GRCh38.tsv.gz"
+    "results/ENCODE/EPCrisprBenchmark/EPCrisprBenchmark_CombinedData_GRCh38.tsv.gz"  
+    
+# perform estmation of indirect effects analysis
+rule indirect_effects:
+  input:
+    "results/Gasperini2019/trans_effects/indirect_effects_0.13gStd_MAST_perCRE_hg19.250kb_filter.html",
+    expand("results/Gasperini2019/trans_effects/{type}_positive_rate_0.13gStd_MAST_perCRE_GRCh38.tsv",
+           type = ["cis", "trans"]),
+    "results/Gasperini2019/trans_effects/EPCrisprBenchmark_Gasperini2019_0.13gStd_0.8pwrAt15effect_GRCh38.250kb_hardFilter.tsv.gz",
+    "results/Gasperini2019/trans_effects/EPCrisprBenchmark_Gasperini2019_0.13gStd_0.8pwrAt15effect_GRCh38.250kb_flipFilter.tsv.gz",
+    "results/Gasperini2019/trans_effects/EPCrisprBenchmark_Gasperini2019_0.13gStd_0.8pwrAt15effect_GRCh38.250kb_propFilter.tsv.gz",
+    "results/Gasperini2019/trans_effects/combined_data/EPCrisprBenchmark_CombinedData_GRCh38.250kb_hardFilter.tsv.gz",
+    "results/Gasperini2019/trans_effects/combined_data/EPCrisprBenchmark_CombinedData_GRCh38.250kb_flipFilter.tsv.gz",
+    "results/Gasperini2019/trans_effects/combined_data/EPCrisprBenchmark_CombinedData_GRCh38.250kb_propFilter.tsv.gz"
 
-# auxillary rules, remove once done ----------------------------------------------------------------
+# auxillary rules to run separate steps ------------------------------------------------------------
 
 # perform all DE tests
 rule all_de_tests:
