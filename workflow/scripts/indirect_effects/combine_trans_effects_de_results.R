@@ -1,9 +1,6 @@
 ## Combine results from trans-acting differential expression test across perturbation batches and
 ## assign significance based on 5% FDR threshold in cis analysis
 
-# save.image("combine.rda")
-# stop()
-
 # required packages
 suppressPackageStartupMessages({
   library(dplyr)
@@ -27,7 +24,8 @@ pval_threshold_cis <- cis_results %>%
 # add significance to trans-effect results based on cis significance threshold
 results <- results %>% 
   mutate(significant = pvalue <= pval_threshold_cis,
-         regulated = significant & logFC < 0)
+         regulated_negative = significant & logFC < 0,
+         regulated_positive = significant & logFC >= 0)
 
 # write output to file
 write_tsv(results, snakemake@output[[1]])

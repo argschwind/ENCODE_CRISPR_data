@@ -48,6 +48,21 @@ rule trans_effects_gasperini:
   script:
     "../scripts/indirect_effects/combine_trans_effects_de_results.R"
     
+# calculate positive rates for cis and trans effects
+rule calculate_positive_hit_rates:
+  input:
+    trans_results = "results/{sample}/trans_effects/output_trans_effects_MAST_perCRE.tsv.gz",
+    cis_results = "results/{sample}/diff_expr/output_MAST_perCRE.tsv.gz",    
+    encode_results = "results/ENCODE/ENCODE_{sample}_{sd}gStd_MAST_perCRE_{genome}.tsv.gz"
+  output:
+    cis_rate = "results/{sample}/trans_effects/cis_positive_rate_{sd}gStd_MAST_perCRE_{genome}.tsv",
+    trans_rate = "results/{sample}/trans_effects/trans_positive_rate_{sd}gStd_MAST_perCRE_{genome}.tsv"
+  params:
+    bin_size = 5e4
+  conda: "../envs/r_process_crispr_data.yml"
+  script:
+    "../scripts/indirect_effects/calculate_positive_hit_rates.R"    
+    
 # plot expected proportion of indirect effects against proportion of effects in cis analysis
 rule plot_indirect_effects:
   input:

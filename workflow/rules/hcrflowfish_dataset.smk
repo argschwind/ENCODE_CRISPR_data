@@ -32,7 +32,7 @@ rule download_processed_hcr_flowfish:
 # filter for cis E-G pairs only
 rule filter_hcr_flowfish:
   input: "results/ENCODE/ENCODE_HCRFlowFISH_perCRE.tsv.gz"
-  output: temp("results/ENCODE/ENCODE_HCRFlowFISH_perCRE_filt.tsv.gz")
+  output: "results/ENCODE/ENCODE_HCRFlowFISH_perCRE_filt.tsv.gz"
   params:
     tss_to_dist = [1000, 1e6]
   conda: "../envs/r_process_crispr_data.yml"
